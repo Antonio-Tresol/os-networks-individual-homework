@@ -11,6 +11,8 @@
 #include <sys/types.h>	// for connect 
 #include <unistd.h>   // for close
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 #include "Socket.hpp"
 
 /**
@@ -85,7 +87,7 @@ int Socket::Connect( const char * host, int port ) {
    ha = (sockaddr*) &host4;
    st = connect( idSocket, (sockaddr *) ha, sizeof( host4 ) );
    if ( -1 == st ) {	// check for errors
-      perror( "Socket::Connect" );
+      perror( "Socket::Connect IPv4" );
       exit( 2 );
    }
    return st;
@@ -98,11 +100,26 @@ int Socket::Connect( const char * host, int port ) {
   * @param	char * service: service name, example "http"
   *
  **/
-int Socket::Connect( const char *host, const char *service ) {
+int Socket::Connect( const char * host, const char * service ) {
    int st = -1;
-
+   struct addrinfo hints, *result, *rp;
+   memset(&hints, 0, sizeof(struct addrinfo));
+   hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+   hints.ai_socktype = SOCK_STREAM; /* Stream socket */
+   hints.ai_flags = 0;
+   hints.ai_protocol = 0;          /* Any protocol */
+   st = getaddrinfo( host, service, &hints, &result );
+   for ( rp = result; rp; rp = rp->ai_next ) {
+      st = connect( idSocket, rp->ai_addr, rp->ai_addrlen );
+      if ( 0 == st )
+         break;
+   }
+   freeaddrinfo( result );
+   if ( -1 == st ) {	// check for errors
+      perror( "Socket::Connect IPv4" );
+      exit( 2 );
+   }
    return st;
-
 }
 
 /**
