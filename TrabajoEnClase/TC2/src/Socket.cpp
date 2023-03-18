@@ -225,9 +225,8 @@ int Socket::Bind( int port ) {
       host6.sin6_port = htons( port );
       ha = (sockaddr*) &host6;
    }
-   st = bind( idSocket, (sockaddr *) ha, sizeof( host4 ) );
+   st = bind( this->idSocket, ha, sizeof( host4 ) );
    return st;
-
 }
 /**
   * Accept method
@@ -270,7 +269,7 @@ void Socket::SetIDSocket(int id){
 int Socket::sendTo( const void * message, int length, const void * other ){
    int st = -1;
    // sentTo using systme call sendto
-   st = sendto( idSocket, message, length, 0, (sockaddr *) other,
+   st = sendto( this->idSocket, message, length, 0, (sockaddr *) other,
       sizeof( sockaddr_in ) );
    // check for errors
    if ( -1 == st ) {	// check for errors
@@ -282,9 +281,10 @@ int Socket::sendTo( const void * message, int length, const void * other ){
 
 int Socket::recvFrom( void * buffer, int length, void * other ){
    int st = -1;
-   socklen_t * size = (socklen_t *) sizeof( sockaddr_in );
+   int size = sizeof( sockaddr_in );
    //  recvFrom using systme call recvfrom
-   st = recvfrom( idSocket, buffer, length, 0, (sockaddr *) other, size );
+   st = recvfrom( this->idSocket, buffer, length, 0, (sockaddr *) other, 
+      (socklen_t *) &size );
    // check for errors
    if ( -1 == st ) {	// check for errors
       perror( "Socket::recvFrom" );
