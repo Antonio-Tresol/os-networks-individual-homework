@@ -218,14 +218,15 @@ int Socket::Bind( int port ) {
       host4.sin_addr.s_addr = INADDR_ANY;
       host4.sin_port = htons( port );
       ha = (sockaddr*) &host4;
+      st = bind( idSocket, ha, sizeof( host4 ) );
    } else {
       memset( (char *) &host6, 0, sizeof( host6 ) );
       host6.sin6_family = AF_INET6;
       host6.sin6_addr = in6addr_any;
       host6.sin6_port = htons( port );
       ha = (sockaddr*) &host6;
+      st = bind( idSocket, ha, sizeof( host6 ) );
    }
-   st = bind( this->idSocket, ha, sizeof( host4 ) );
    return st;
 }
 /**
@@ -238,7 +239,6 @@ int Socket::Bind( int port ) {
   *
  **/
 Socket * Socket::Accept(){
-
    return (Socket *) 0;
 }
 /**
