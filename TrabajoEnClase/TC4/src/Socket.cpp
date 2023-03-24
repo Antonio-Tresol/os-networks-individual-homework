@@ -125,33 +125,33 @@ int Socket::Connect( const char * host, const char * service ) {
    }
    return st;
 }
-int Socket::ConnectIPV6(const char* host, int port) {
-  struct sockaddr_in6 host6;
-  memset(reinterpret_cast<char*>(&host6), 0, sizeof(host6));
-  host6.sin6_family = AF_INET6;
-  inet_pton(AF_INET6, host, &host6.sin6_addr);
-  host6.sin6_port = htons(port);
-  int st = connect(this->idSocket, reinterpret_cast<sockaddr*>(&host6), sizeof(host6));
-  if (st == -1) {
-    perror("Socket::Connect");
-    exit(2);
-  }
-  return st;
-}
-int Socket::ConnectIPV6(const char* host, const char* port) {
-  struct sockaddr_in6 host6;
-  memset(reinterpret_cast<char *>(&host6), 0, sizeof(host6));
-  host6.sin6_family = AF_INET6;
-  inet_pton(AF_INET6, host, &host6.sin6_addr);
-  host6.sin6_port = htons(atoi(port));
-  int st = connect(this->idSocket, reinterpret_cast<sockaddr *>(&host6),
-           sizeof(host6));
-  if (st == -1) {
-    perror("Socket::Connect");
-    exit(2);
-  }
-  return st;
-}
+// int Socket::ConnectIPV6(const char* host, int port) {
+//   struct sockaddr_in6 host6;
+//   memset(reinterpret_cast<char*>(&host6), 0, sizeof(host6));
+//   host6.sin6_family = AF_INET6;
+//   inet_pton(AF_INET6, host, &host6.sin6_addr);
+//   host6.sin6_port = htons(port);
+//   int st = connect(this->idSocket, reinterpret_cast<sockaddr*>(&host6), sizeof(host6));
+//   if (st == -1) {
+//     perror("Socket::Connect");
+//     exit(2);
+//   }
+//   return st;
+// }
+// int Socket::ConnectIPV6(const char* host, const char* port) {
+//   struct sockaddr_in6 host6;
+//   memset(reinterpret_cast<char *>(&host6), 0, sizeof(host6));
+//   host6.sin6_family = AF_INET6;
+//   inet_pton(AF_INET6, host, &host6.sin6_addr);
+//   host6.sin6_port = htons(atoi(port));
+//   int st = connect(this->idSocket, reinterpret_cast<sockaddr *>(&host6),
+//            sizeof(host6));
+//   if (st == -1) {
+//     perror("Socket::Connect");
+//     exit(2);
+//   }
+//   return st;
+// }
 
 /**
   * Read method

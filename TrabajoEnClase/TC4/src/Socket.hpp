@@ -45,8 +45,8 @@ class Socket {
         int SSLWrite(const void * buffer, int bufferSize );
         int InitSSLContext();
         int InitSSL();
-        int ConnectIPV6(const char* host, const char* port);
-        int ConnectIPV6(const char* host, int port);
+        // int ConnectIPV6(const char* host, const char* port);
+        // int ConnectIPV6(const char* host, int port);
         
     private:
         int idSocket;
