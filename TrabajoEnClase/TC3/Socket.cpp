@@ -317,11 +317,19 @@ int Socket::InitSSL(){
 }
 
 int Socket::SSLConnect(const char * host, int port){
-
+   int st = -1;
+   Connect( host, port );	// Establish a non SSL connection first
+   SSL_set_fd( (SSL *) this->SSLStruct, this->idSocket );
+   st = SSL_connect( (SSL *) this->SSLStruct );
+   // check for errors
+   if ( -1 == st ) {	// check for errors
+      perror( "Socket::SSLConnect" );
+      exit( 2 );
+   }
 }
 int Socket::SSLConnect(const char * host, const char * service ){
    int st = -1;
-   Connect( host, port );	// Establish a non SSL connection first
+   Connect( host, service );	// Establish a non SSL connection first
    SSL_set_fd( (SSL *) this->SSLStruct, this->idSocket );
    st = SSL_connect( (SSL *) this->SSLStruct );
    // check for errors
