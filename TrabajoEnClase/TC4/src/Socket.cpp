@@ -107,7 +107,8 @@ int Socket::Connect( const char * host, int port ) {
 int Socket::Connect( const char * host, const char * service ) {
    int st = -1;
    struct addrinfo hints, *result, *rp;
-   memset(&hints, 0, sizeof(struct addrinfo));
+   memset( &hints, 0, sizeof( struct addrinfo ) );
+   memset( &result, 0, sizeof( struct addrinfo ) );
    hints.ai_family = AF_UNSPEC;
    hints.ai_socktype = SOCK_STREAM; /* Stream socket is  a TCP socket */
    hints.ai_flags = 0;
@@ -362,7 +363,7 @@ int Socket::SSLConnect(const char * host, int port){
 int Socket::SSLConnect(const char * host, const char * service ){
    int st = -1;
    if (this->ipv6){
-      st = ConnectIPV6(host, service);
+      st = Connect(host, service);
    } else {
       st = Connect(host, service);
    }
