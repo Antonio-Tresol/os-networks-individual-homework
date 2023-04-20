@@ -1,17 +1,4 @@
-// TODO (Antonio): modify class to handle errors by throwing exceptions
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netdb.h>
 #include "Socket.hpp"
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
 /**
  *@brief: Class constructor for sys/socket wrapper 
  *@param:	char type: socket type to define ('s' for stream 'd' for datagram)
@@ -29,9 +16,9 @@ Socket::Socket(char SocketType, bool IPv6) {
   // Set the socket type to TCP or UDP
   int socketType = 0;
   if (SocketType == 's'){
-    socketType = SOCK_STREAM;
+    socketType = SOCK_STREAM;  // TCP socket (connection oriented)
   } else if (SocketType == 'd') {
-    socketType = SOCK_DGRAM;
+    socketType = SOCK_DGRAM;  // UDP socket (connectionless)
   }
   // Create the socket
   this->idSocket = socket(domain, socketType, 0);
