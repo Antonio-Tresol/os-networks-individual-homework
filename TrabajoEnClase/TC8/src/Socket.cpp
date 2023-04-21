@@ -1,9 +1,12 @@
 #include "Socket.hpp"
 /**
- *@brief: Class constructor for sys/socket wrapper 
- *@param:	char type: socket type to define ('s' for stream 'd' for datagram)
- *@param:	bool ipv6: if we need a IPv6 socket
- *@details: exits if socket cre
+ * @brief Class constructor for sys/socket wrapper 
+ * @param	char type: socket type to define ('s' for stream 'd' for datagram)
+ *  Stream sockets (SOCK_STREAM) provide a reliable, bidirectional, byte-stream 
+ *  communication channel between two endpoints (connection oriented).
+ *  Datagram sockets (SOCK_DGRAM) provide unreliable, connectionless,
+ *  message-oriented communication.
+ *@param	bool ipv6: if we need a IPv6 socket
  */
 Socket::Socket(char SocketType, bool IPv6) {
   // Set the domain to IPv4 or IPv6
@@ -32,16 +35,16 @@ Socket::Socket(char SocketType, bool IPv6) {
   }
 }
 /**
- * @brief: constructor for socket descriptor
- * @param: int socketDescriptor
- * @details: used for accepting connections, uses accept method
+ * @brief constructor for socket, using existing socket descriptor.
+ * @param int socketDescriptor
+ * @details used for accepting connections, used by the accept method.
 */
 Socket::Socket(int socketDescriptor) {
-  
+  this->idSocket = socketDescriptor;
 }
 /**
- * @brief: default constructor
- * @details: closes socket file descriptor and frees SSL context and structure
+ * @brief default constructor
+ * @details closes socket file descriptor and frees SSL context and structure
  */
 Socket::~Socket(){
   // close the socket
@@ -57,10 +60,15 @@ void Socket::Close(){
 }
 
 /**
- * @brief: connect method for IPv4
- * @param:	char* host host address in dot notation, example "
- * @param:	int port port number
- * @return: int 0 if success, -1 if error
+ * @brief system call connects this active socket to a listening socket.
+ *  usually used for TCP sockets.
+ * @details the connect() system call serves a purpose when applied to datagram 
+ *  sockets. Calling connect() on a datagram socket causes the kernel to record
+ *  a particular address as this socket’s peer. For more details on this see: 
+ *  The Linux Programming Interface, Michael Kerrisk, Chapter 56 section 6.2
+ * @param	char* host host address in dot notation
+ * @param	int port port number
+ * @return int 0 if success, -1 if error
 */
 int Socket::Connect(const char* host, int port) {
   int st;
@@ -78,21 +86,23 @@ int Socket::Connect(const char* host, int port) {
   return st;
 }
 /**
- * @brief: connect method for IPv6
- * @param:char* host host address in dot notation, example "
- * @param: char* service service name
- * @return: int 0 if success, -1 if error
+ * @brief connects with a pasive socket (TCP). It uses getaddrinfo to get the
+ * address of the host and then connects to it and hints to specify the type of
+ * socket we want to connect to.
+ * @param char* host host address in dot notation, example .
+ * @param char* service service name
+ * @return int 0 if success, -1 if error
 */
 int Socket::Connect(const char* host, const char* service) {
   int st = -1;
   struct addrinfo hints, *result, *rp;
-  memset( &hints, 0, sizeof(struct addrinfo));
-  memset( &result, 0, sizeof(struct addrinfo));
+  memset(&hints, 0, sizeof(struct addrinfo));
+  memset(&result, 0, sizeof(struct addrinfo));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;  // TCP
   hints.ai_flags = 0;
   hints.ai_protocol = 0;         
-  st = getaddrinfo( host, service, &hints, &result );
+  st = getaddrinfo(host, service, &hints, &result);
   for (rp = result; rp; rp = rp->ai_next) {
     st = connect(this->idSocket, rp->ai_addr, rp->ai_addrlen);
     if ( 0 == st )
@@ -105,17 +115,18 @@ int Socket::Connect(const char* host, const char* service) {
   return st;
 }
 /**
- * @brief: read method
- * @param: void* buffer buffer to store data read from socket
- * @param: int size buffer capacity, number of bytes to read
- * @return: int number of bytes read
+ * @brief read method uses read system call to read data from a TCP socket
+ * (STREAM). Other system like send/recv could be used for this too.
+ * @param void* buffer buffer to store data read from socket
+ * @param int size buffer capacity, number of bytes to read
+ * @return int number of bytes read
  */
 int Socket::Read(void* buffer, int bufferSize) {
   int st = -1; 
   // Read from the socket and store the data in buffer using system call read
   st = read(this->idSocket, buffer, bufferSize);
 
-  if ( -1 == st ) {
+  if (-1 == st) {
     perror("Socket::Read error");
   }
   return st;
@@ -139,7 +150,8 @@ int Socket::Write(const void* buffer, int bufferSize) {
 
 }
 /**
- * @brief write method uses write system call.
+ * @brief write method uses write system call to perform a write operation in a
+ *  TCP socket (STREAM). Other system like send/recv could be used for this too.
  * @param const char* buffer to write in.
  * @returns 0 on success, exit(2) otherwise.
 */
@@ -154,9 +166,11 @@ int Socket::Write(const char* buffer) {
 }
 
 /**
- * @brief: listen method uses listen system call
- * @param: Socket* socket socket to accept
- * @return: int 0 if success, -1 if error
+ * @brief listen method uses listen system call to mark a socket as passive
+ * @details the socket will be used to accept incoming connection requests.
+ *  also, no socket that has used connect becaused it is a active socket
+ * @param Socket* socket socket to accept
+ * @return int 0 if success, -1 if error
  */
 int Socket::Listen(int queue) {
   int st = -1;
@@ -168,9 +182,10 @@ int Socket::Listen(int queue) {
 }
 
 /**
- * @brief: bind method uses bind system call
- * @param: int port port number
- * @return: int 0 if success, -1 if error
+ * @brief bind method uses bind system call used to bind a socket to a address.
+ *  ussually a well known address is used.
+ * @param int port port number
+ * @return int 0 if success, -1 if error
 */
 int Socket::Bind(int port) {
   int st = -1;
@@ -196,8 +211,10 @@ int Socket::Bind(int port) {
   return st;
 }
 /**
- * @brief: accept method uses accept system call to accept a connection 
- * @returns a new socket
+ * @brief accept method uses accept system call to accepts an incoming
+ *  connection on a listening stream socket.
+ * @details blocking call, it will wait until a connection is available.
+ * @returns a new socket (handle) to communicate with the client.
 */
 Socket* Socket::Accept(){
   int new_socket_fd;
@@ -221,11 +238,11 @@ Socket* Socket::Accept(){
   return new_socket;
 }
 /**
- * @brief: shutdown method uses shutdown system call
- * @param: int mode mode to shutdown
+ * @brief shutdown method uses shutdown system call
+ * @param int mode mode to shutdown
  *  mode = 0: shutdown read, mode = 1: shutdown write,
  *  mode = 2: shutdown read and write
- * @return: int 0 if success, -1 if error
+ * @return int 0 if success, -1 if error
 */
 int Socket::Shutdown(int mode) {
   int st = -1;
@@ -239,7 +256,8 @@ void Socket::SetIDSocket(int id){
   this->idSocket = id;
 }
 /**
- * @brief sendTo method uses sendto system call to send a message to a socket
+ * @brief sendTo method uses sendto system call to send a message to a
+ *  UDP Socket (datagram)
  * @param const void* message message to send
  * @param int length length of the message
  * @param const void* other socket to send the message to
@@ -248,21 +266,22 @@ int Socket::sendTo(const void* message, int length, const void* other) {
   // use boolean ipv6 to determine the size of sockaddr structure
   int st = -1;
   // sentTo using systme call sendto
-  if ( this->ipv6 == false ) {
+  if (this->ipv6 == false) {
     st = sendto(this->idSocket, message, length, 0, (sockaddr*) other,
         sizeof(sockaddr_in));
   } else {
     st = sendto(this->idSocket, message, length, 0, (sockaddr*) other,
         sizeof(sockaddr_in6));
   }
-  if ( -1 == st ) {
+  if (-1 == st) {
     perror("Socket::sentTo");
     exit(2);
   }
   return st;
 }
 /**
- * @brief recvFrom method uses recvfrom system call to receive a message
+ * @brief recvFrom method uses recvfrom system call to receive a message from a
+ *  UDP Socket (datagram)
  * @param void* buffer buffer to store the message
  * @param int length length of the message
  * @param void* other socket to receive the message from
@@ -272,7 +291,7 @@ int Socket::recvFrom(void* buffer, int length, void* other) {
   // use boolean ipv6 to determine the size of sockaddr structure
   int st = -1;
   int size = 0;
-  if ( this->ipv6 == false ) {
+  if (this->ipv6 == false) {
     size = sizeof(sockaddr_in);
     st = recvfrom(this->idSocket, buffer, length, 0, (sockaddr*) other, 
         (socklen_t *) &size);
@@ -288,9 +307,9 @@ int Socket::recvFrom(void* buffer, int length, void* other) {
   return st;
 } 
 /**
- * @brief: InitSSLContext method initializes the SSL context
- * @details: uses 
- * @return: int 0 if success, -1 if error
+ * @brief InitSSLContext method initializes the SSL context
+ * @details uses openssl library to initialize the SSL context
+ * @return  int 0 if success, -1 if error
 */
 int Socket::InitSSL() {
   // Create a SSL socket, a new context must be created before
@@ -305,9 +324,9 @@ int Socket::InitSSL() {
   return 0;
 }
 /**
- * @brief: SSLConnect method uses SSL_connect system call to connect to a server
- * @param: const char* host host name
- * @param: int port port number
+ * @brief SSLConnect method uses SSL_connect system call to connect to a server
+ * @param const char* host host name
+ * @param int port port number
 */
 int Socket::SSLConnect(const char * host, int port) {
   int st = -1;
@@ -321,11 +340,11 @@ int Socket::SSLConnect(const char * host, int port) {
 }
 
 /**
- * @brief: SSLConnect method uses SSL_connect system call to connect to a server
- * @param: const char* host host name
- * @param: const char* service service name
- * @details: service name can be a port number or a service name
- * @return: int 0 if success, -1 if error
+ * @brief SSLConnect method uses SSL_connect system call to connect to a server
+ * @param const char* host host name
+ * @param const char* service service name
+ * @details service name can be a port number or a service name
+ * @return int 0 if success, -1 if error
 */
 int Socket::SSLConnect(const char * host, const char* service) {
   int st = -1;
@@ -355,10 +374,10 @@ int Socket::SSLRead(void* buffer, int bufferSize) {
   return st;
 }
 /**
- * @brief: SSLWrite method uses SSL_write system call to write to a socket
- * @param: const void* buffer buffer to store the message
- * @param: int bufferSize size of the buffer
- * @return: int number of bytes written
+ * @brief SSLWrite method uses SSL_write system call to write to a socket
+ * @param const void* buffer buffer to store the message
+ * @param int bufferSize size of the buffer
+ * @return int number of bytes written
 */
 int Socket::SSLWrite(const void * buffer, int bufferSize) {
   int st = -1;
@@ -371,9 +390,9 @@ int Socket::SSLWrite(const void * buffer, int bufferSize) {
   return st;
 }
 /**
- * @brief: InitSSLContext method initializes the SSL context
- * @details: uses the TLS_client_method to create a new context
- * @return: int 0 if success, -1 if error
+ * @brief InitSSLContext method initializes the SSL context
+ * @details uses the TLS_client_method to create a new context
+ * @return int 0 if success, -1 if error
 */
 int Socket::InitSSLContext() {  
   // We must create a method to define our context
