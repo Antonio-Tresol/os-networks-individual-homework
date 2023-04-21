@@ -98,7 +98,7 @@ int Socket::Connect(const char* host, const char* service) {
   struct addrinfo hints, *result, *rp;
   memset(&hints, 0, sizeof(struct addrinfo));
   memset(&result, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_UNSPEC;
+  hints.ai_family = AF_UNSPEC; // to allow IPv4 or IPv6
   hints.ai_socktype = SOCK_STREAM;  // TCP
   hints.ai_flags = 0;
   hints.ai_protocol = 0;         
