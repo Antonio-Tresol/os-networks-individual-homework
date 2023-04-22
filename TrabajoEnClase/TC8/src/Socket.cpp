@@ -1,4 +1,5 @@
 #include "Socket.hpp"
+
 /**
  * @brief Class constructor for sys/socket wrapper 
  * @param	char type: socket type to define ('s' for stream 'd' for datagram)
@@ -25,13 +26,11 @@ Socket::Socket(char SocketType, bool IPv6) {
   }
   // Create the socket
   this->idSocket = socket(domain, socketType, 0);
-  this->port = 80;
   this->SSLContext = nullptr;
   this->SSLStruct = nullptr;
 
   if (this->idSocket < 0) {
     perror("Socket::Socket");
-    exit(1);
   }
 }
 /**
@@ -41,6 +40,8 @@ Socket::Socket(char SocketType, bool IPv6) {
 */
 Socket::Socket(int socketDescriptor) {
   this->idSocket = socketDescriptor;
+  this->SSLContext = nullptr;
+  this->SSLStruct = nullptr;
 }
 /**
  * @brief default constructor
@@ -51,12 +52,17 @@ Socket::~Socket(){
   Close();
 }
 /**
- * @brief Close method uses "close" Unix system call
+ * @brief Close method uses "close" Unix system call. it closes the socket file
+ * descriptor and frees SSL context and structure if they exist.
  */
 void Socket::Close(){
   close(this->idSocket);  
-  if (this->SSLContext == nullptr) SSL_CTX_free(this->SSLContext);
-  if (this->SSLStruct == nullptr) SSL_free(this->SSLStruct );  
+  if (this->SSLContext != nullptr) {
+    SSL_CTX_free(this->SSLContext);
+  }
+  if (this->SSLStruct != nullptr) {
+    SSL_free(this->SSLStruct);
+  }  
 }
 
 /**
@@ -71,17 +77,33 @@ void Socket::Close(){
  * @return int 0 if success, -1 if error
 */
 int Socket::Connect(const char* host, int port) {
-  int st;
-  struct sockaddr_in host4;
+  int st = -1;
+  // sockaddr_in is a struct containing an information about internet sockets.
+  // sockaddr_in6 is used for IPv6. they contain ip address and port number.
   struct sockaddr * ha;
-  memset((char*) &host4, 0, sizeof(host4));
-  host4.sin_family = AF_INET;
-  inet_pton(AF_INET, host, &host4.sin_addr);
-  host4.sin_port = htons(port);
-  ha = (sockaddr*) &host4;
-  st = connect(idSocket, (sockaddr*) ha, sizeof(host4));
+  if (this->ipv6) {
+    struct sockaddr_in6 hostIpv6;
+    memset((char*) &hostIpv6, 0, sizeof(hostIpv6));
+    hostIpv6.sin6_family = AF_INET6;
+    inet_pton(AF_INET6, host, &hostIpv6.sin6_addr);
+    hostIpv6.sin6_port = htons(port);
+    ha = (sockaddr*) &hostIpv6;
+    st = connect(idSocket, (sockaddr*) ha, sizeof(hostIpv6));
+  } else {
+    struct sockaddr_in host4;
+    memset((char*) &host4, 0, sizeof(host4));
+    host4.sin_family = AF_INET;
+    // inep_pton(inet_presentation string to network) converts an IP address in
+    // dotted-decimal notation to binary form.
+    inet_pton(AF_INET, host, &host4.sin_addr);
+    // network byte order is big endian, host byte order is little endian, so we
+    // need to convert the port number to network byte order.
+    host4.sin_port = htons(port);  // host to network short (htons)
+    ha = (sockaddr*) &host4;
+    st = connect(idSocket, (sockaddr*) ha, sizeof(host4));
+  }
   if (-1 == st) {
-    perror("Socket::Connect IPv4 error");
+    perror("Socket::Connect error");
   }
   return st;
 }
@@ -101,8 +123,15 @@ int Socket::Connect(const char* host, const char* service) {
   hints.ai_family = AF_UNSPEC; // to allow IPv4 or IPv6
   hints.ai_socktype = SOCK_STREAM;  // TCP
   hints.ai_flags = 0;
-  hints.ai_protocol = 0;         
+  hints.ai_protocol = 0; 
+  // Given a hostname and a service name, getaddrinfo() returns a set of
+  // structures containing the corresponding binary IP address(es) and port 
+  // number. Thats why we use rp and result to iterate over the list of 
+  // addresses returned by getaddrinfo.
   st = getaddrinfo(host, service, &hints, &result);
+  if (st != 0) {
+    perror("Socket::Connect getaddrinfo error");
+  }
   for (rp = result; rp; rp = rp->ai_next) {
     st = connect(this->idSocket, rp->ai_addr, rp->ai_addrlen);
     if ( 0 == st )
@@ -110,7 +139,7 @@ int Socket::Connect(const char* host, const char* service) {
   }
   freeaddrinfo(result);
   if (-1 == st) {
-    perror("Socket::Connect IPv6 error");
+    perror("Socket::Connect error");
   }
   return st;
 }
@@ -125,9 +154,10 @@ int Socket::Read(void* buffer, int bufferSize) {
   int st = -1; 
   // Read from the socket and store the data in buffer using system call read
   st = read(this->idSocket, buffer, bufferSize);
-
-  if (-1 == st) {
+  if (-1 == st || 0 == st) {
     perror("Socket::Read error");
+  } else if (0 == st) {
+    perror("Socket::Read connection closed by peer");
   }
   return st;
 }
@@ -135,7 +165,7 @@ int Socket::Read(void* buffer, int bufferSize) {
  * @brief write method uses write system call.
  * @param const void* buffer to write in.
  * @param int bufferSize the capacity of the buffer.
- * @returns 0 on success, exit(2) otherwise.
+ * @returns 0 on success, -1 otherwise.
 */
 int Socket::Write(const void* buffer, int bufferSize) {
   int st = -1;
@@ -144,7 +174,6 @@ int Socket::Write(const void* buffer, int bufferSize) {
 
   if (-1 == st) {
     perror("Socket::Write error");
-    exit(2);
   }
   return st;
 
@@ -153,14 +182,13 @@ int Socket::Write(const void* buffer, int bufferSize) {
  * @brief write method uses write system call to perform a write operation in a
  *  TCP socket (STREAM). Other system like send/recv could be used for this too.
  * @param const char* buffer to write in.
- * @returns 0 on success, exit(2) otherwise.
+ * @returns 0 on success, -1 otherwise.
 */
 int Socket::Write(const char* buffer) {
   int st = -1;
   st = Write(buffer, strlen(buffer));
   if (-1 == st) {
     perror("Socket::Write");
-    exit(2);
   }
   return st;
 }
@@ -168,13 +196,13 @@ int Socket::Write(const char* buffer) {
 /**
  * @brief listen method uses listen system call to mark a socket as passive
  * @details the socket will be used to accept incoming connection requests.
- *  also, no socket that has used connect becaused it is a active socket
- * @param Socket* socket socket to accept
+ *  also, no socket that has used connect because it is an active socket
+ * @param int backlog maximum number of pending connection requests in the queue
  * @return int 0 if success, -1 if error
  */
-int Socket::Listen(int queue) {
+int Socket::Listen(int backlog) {
   int st = -1;
-  st = listen(this->idSocket, queue);
+  st = listen(this->idSocket, backlog);
   if (-1 == st) {
     perror("Socket::Listen error");
   }
@@ -190,23 +218,27 @@ int Socket::Listen(int queue) {
 int Socket::Bind(int port) {
   int st = -1;
   struct sockaddr* ha;
-  struct sockaddr_in host4;
-  struct sockaddr_in6 host6;
   // use bind to link the socket to a port
   if (this->ipv6 == false) {
-    memset((char*) &host4, 0, sizeof(host4));
-    host4.sin_family = AF_INET;
-    host4.sin_addr.s_addr = INADDR_ANY;
-    host4.sin_port = htons(port);
-    ha = (sockaddr*) &host4;
-    st = bind(idSocket, ha, sizeof(host4));
+    struct sockaddr_in hostIpv4;
+    memset((char*) &hostIpv4, 0, sizeof(hostIpv4));
+    hostIpv4.sin_family = AF_INET;
+    hostIpv4.sin_addr.s_addr = INADDR_ANY;
+    hostIpv4.sin_port = htons(port);
+    ha = (sockaddr*) &hostIpv4;
+    st = bind(idSocket, ha, sizeof(hostIpv4));
   } else {
-    memset((char*) &host6, 0, sizeof(host6));
-    host6.sin6_family = AF_INET6;
-    host6.sin6_addr = in6addr_any;
-    host6.sin6_port = htons(port);
-    ha = (sockaddr*) &host6;
-    st = bind(idSocket, ha, sizeof(host6));
+    // initialize ipv6 sockaddr, see: LinuxProgramingInterface Chap.59 p.1203
+    struct sockaddr_in6 hostIpv6;
+    memset((char*) &hostIpv6, 0, sizeof(hostIpv6));
+    hostIpv6.sin6_family = AF_INET6;
+    hostIpv6.sin6_addr = in6addr_any;
+    hostIpv6.sin6_port = htons(port);
+    ha = (sockaddr*) &hostIpv6;
+    st = bind(idSocket, ha, sizeof(hostIpv6));
+  }
+  if (-1 == st) {
+    perror("Socket::Bind error");
   }
   return st;
 }
@@ -217,25 +249,19 @@ int Socket::Bind(int port) {
  * @returns a new socket (handle) to communicate with the client.
 */
 Socket* Socket::Accept(){
-  int new_socket_fd;
-  if (this->ipv6 == false) {
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
-    new_socket_fd = accept(this->idSocket, (struct sockaddr*)&client_addr,
-      &client_addr_len);
-  } else {
-    struct sockaddr_in6 client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
-    new_socket_fd = accept(this->idSocket, (struct sockaddr*)&client_addr,
-      &client_addr_len);
-  }
-  if (new_socket_fd < 0) {
-    perror("Socket::Accept");
-    exit(2);
-  }
+  int newSocketFd;
+  // sockaddr_storage is large enough to hold both IPv4 and IPv6 structures
+  struct sockaddr_storage clientAddr;
+  socklen_t clientAddrLen = sizeof(clientAddr);
 
-  Socket *new_socket = new Socket(new_socket_fd);
-  return new_socket;
+  newSocketFd = accept(this->idSocket, (struct sockaddr*)&clientAddr,
+   &clientAddrLen);
+
+  if (newSocketFd < 0) {
+    perror("Socket::Accept");
+  }
+  Socket *newSocket = new Socket(newSocketFd);
+  return newSocket;
 }
 /**
  * @brief shutdown method uses shutdown system call
@@ -246,7 +272,10 @@ Socket* Socket::Accept(){
 */
 int Socket::Shutdown(int mode) {
   int st = -1;
-  // TODO: implement shutdown method
+  st = shutdown(this->idSocket, mode);
+  if (st == -1) {	// check for errors
+    perror("Socket::Shutdown");
+  }
   return st;
 }
 /**
@@ -260,52 +289,42 @@ void Socket::SetIDSocket(int id){
  *  UDP Socket (datagram)
  * @param const void* message message to send
  * @param int length length of the message
- * @param const void* other socket to send the message to
+ * @param const void* destAddr socket to send the message to
 */
-int Socket::sendTo(const void* message, int length, const void* other) {
-  // use boolean ipv6 to determine the size of sockaddr structure
+int Socket::sendTo(const void* message, int length, const void* destAddr) {
   int st = -1;
-  // sentTo using systme call sendto
-  if (this->ipv6 == false) {
-    st = sendto(this->idSocket, message, length, 0, (sockaddr*) other,
-        sizeof(sockaddr_in));
-  } else {
-    st = sendto(this->idSocket, message, length, 0, (sockaddr*) other,
-        sizeof(sockaddr_in6));
-  }
+  // Determine the size of the sockaddr structure based on the ipv6 attribute
+  int addrSize = this->ipv6 ? sizeof(sockaddr_in6) : sizeof(sockaddr_in);
+  // Send the message using the sendto system call
+  st = sendto(this->idSocket, message, length, 0, (sockaddr*)destAddr, 
+    addrSize);
   if (-1 == st) {
-    perror("Socket::sentTo");
-    exit(2);
+    perror("Socket::sendTo");
   }
   return st;
 }
+
 /**
  * @brief recvFrom method uses recvfrom system call to receive a message from a
  *  UDP Socket (datagram)
  * @param void* buffer buffer to store the message
  * @param int length length of the message
- * @param void* other socket to receive the message from
+ * @param void* srcAddr socket to receive the message from
  * @return int number of bytes received
 */
-int Socket::recvFrom(void* buffer, int length, void* other) {
-  // use boolean ipv6 to determine the size of sockaddr structure
+int Socket::recvFrom(void* buffer, int length, void* srcAddr) {
   int st = -1;
-  int size = 0;
-  if (this->ipv6 == false) {
-    size = sizeof(sockaddr_in);
-    st = recvfrom(this->idSocket, buffer, length, 0, (sockaddr*) other, 
-        (socklen_t *) &size);
-  } else {
-    size = sizeof(sockaddr_in6 );
-    st = recvfrom(this->idSocket, buffer, length, 0, (sockaddr*) other, 
-        (socklen_t*) &size);
-  }
+  // Determine the size of the sockaddr structure based on the ipv6 attribute
+  int addrSize = this->ipv6 ? sizeof(sockaddr_in6) : sizeof(sockaddr_in);
+  // Receive data using the recvfrom system call
+  st = recvfrom(this->idSocket, buffer, length, 0, (sockaddr*)srcAddr,
+    (socklen_t*)&addrSize);
   if (-1 == st) {
     perror("Socket::recvFrom");
-    exit(2);
   }
   return st;
-} 
+}
+
 /**
  * @brief InitSSLContext method initializes the SSL context
  * @details uses openssl library to initialize the SSL context
@@ -318,7 +337,6 @@ int Socket::InitSSL() {
 
   if (ssl == nullptr) {
     perror("Socket::InitSSL");
-    exit(2);
   }
   this->SSLStruct = ssl;
   return 0;
@@ -354,7 +372,6 @@ int Socket::SSLConnect(const char * host, const char* service) {
 
   if (-1 == st) {
     perror("Socket::SSLConnect");
-    exit(2);
   }
 }
 /**
@@ -369,7 +386,6 @@ int Socket::SSLRead(void* buffer, int bufferSize) {
 
   if ( -1 == st ) { 
     perror("Socket::SSLRead");
-    exit(2);
   }
   return st;
 }
@@ -385,7 +401,6 @@ int Socket::SSLWrite(const void * buffer, int bufferSize) {
 
   if (-1 == st) {
     perror("Socket::SSLWrite");
-    exit(2);
   }
   return st;
 }
@@ -399,7 +414,6 @@ int Socket::InitSSLContext() {
   const SSL_METHOD* method = TLS_client_method();
   if (method == nullptr) {
     perror("Socket::InitSSLContext");
-    exit(2);
   }
   SSL_CTX* context = SSL_CTX_new(method);
   this->SSLContext = context;

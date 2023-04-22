@@ -30,8 +30,8 @@ class Socket {
   Socket* Accept();
   int Shutdown(int mode);
   void SetIDSocket(int newId);
-  int sendTo(const void* message, int length, const void* other);
-  int recvFrom(void* buffer, int length, void* other);
+  int sendTo(const void* message, int length, const void* destAddr);
+  int recvFrom(void* buffer, int length, void* srcAddr);
   int SSLConnect(const char* host, int port);
   int SSLConnect(const char* host, const char * service);
   int SSLRead(void* buffer, int bufferSize);
