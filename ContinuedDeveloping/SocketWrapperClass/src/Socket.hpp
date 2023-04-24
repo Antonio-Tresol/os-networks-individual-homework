@@ -4,6 +4,8 @@
 // chapeters 59-61.
 // TODO (Antonio): modify class to handle errors by throwing exceptions
 #include <stdio.h>
+#include <iostream>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -21,16 +23,16 @@
 
 class Socket {
  public:
-  Socket(char SocketType, bool IPv6 = false);
-  Socket(int socketDescriptor);
-  ~Socket();
-  int Connect(const char* host, int port);
-  int Connect(const char* host, const char* service);
-  void Close();
-  int Read(void* buffer, int bufferSize);
-  int Write(const void* buffer, int bufferSize);
-  int Write(const char* buffer);
-  int Listen(int backlog);
+  Socket(char SocketType, bool IPv6 = false) noexcept(false);
+  Socket(int socketDescriptor) noexcept(false);
+  ~Socket() noexcept(true);
+  void Connect(const char* host, int port) noexcept(false);
+  void Connect(const char* host, const char* service) noexcept(false);
+  void Close() noexcept(false);
+  int Read(void* buffer, int bufferSize) noexcept(false);
+  void Write(const void* buffer, int bufferSize) noexcept(false);
+  void Write(const char* buffer) noexcept(false);
+  void Listen(int backlog) noexcept(false);
   int Bind(int port);
   Socket* Accept();
   int Shutdown(int mode);
@@ -50,6 +52,11 @@ class Socket {
   bool ipv6;
   SSL_CTX *SSLContext;
   SSL *SSLStruct;
+  int fdIsValid(int fd);
+  void connectIPv4(const char* host, int port);
+  void connectIPv6(const char* host, int port);
+  void bindIPv4(int port) noexcept(false);
+  void bindIPv6(int port) noexcept(false);
 
 };
 #endif

@@ -9,6 +9,7 @@
 #include <exception>
 #include <string>
 #include <cstring>
+#include <cerrno>
 
 /**
  * @class SocketException
