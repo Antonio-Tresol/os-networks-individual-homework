@@ -33,18 +33,19 @@ class Socket {
   void Write(const void* buffer, int bufferSize) noexcept(false);
   void Write(const char* buffer) noexcept(false);
   void Listen(int backlog) noexcept(false);
-  int Bind(int port);
-  Socket* Accept();
-  int Shutdown(int mode);
-  void SetIDSocket(int newId);
-  int sendTo(const void* message, int length, const void* destAddr);
-  int recvFrom(void* buffer, int length, void* srcAddr);
-  int SSLConnect(const char* host, int port);
-  int SSLConnect(const char* host, const char * service);
-  int SSLRead(void* buffer, int bufferSize);
-  int SSLWrite(const void* buffer, int bufferSize);
-  int InitSSLContext();
-  int InitSSL();
+  int Bind(int port) noexcept(false);
+  Socket* Accept() noexcept(false);
+  void Shutdown(int mode) noexcept(false);
+  void SetIDSocket(int newId) noexcept(true);
+  int sendTo(const void* message, int length, const void* destAddr) 
+    noexcept(false);
+  int recvFrom(void* buffer, int length, void* srcAddr) noexcept(false);
+  void SSLConnect(const char* host, int port) noexcept(false);
+  void SSLConnect(const char* host, const char * service) noexcept(false);
+  int SSLRead(void* buffer, int bufferSize) noexcept(false);
+  int SSLWrite(const void* buffer, int bufferSize) noexcept(false);
+  void InitSSLContext() noexcept(false);
+  void InitSSL() noexcept(false);
 
  private:
   int idSocket;
@@ -53,10 +54,9 @@ class Socket {
   SSL_CTX *SSLContext;
   SSL *SSLStruct;
   int fdIsValid(int fd);
-  void connectIPv4(const char* host, int port);
-  void connectIPv6(const char* host, int port);
+  void connectIPv4(const char* host, int port) noexcept(false);
+  void connectIPv6(const char* host, int port) noexcept(false);
   void bindIPv4(int port) noexcept(false);
   void bindIPv6(int port) noexcept(false);
-
 };
 #endif
