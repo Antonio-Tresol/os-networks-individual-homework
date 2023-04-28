@@ -1,38 +1,52 @@
 #include "test.hpp"
+#include <thread>
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     std::cerr << "Usage: " << argv[0] << 
-      " <1:server TCP|2:client TCP|3:ssl client Ipv4|4:ssl client Ipv6|5:Server UDP|6:Client UDP| >" << std::endl;
+      " <1:server and client TCP|2:ssl client Ipv4|3:ssl client Ipv6|4:Server and Client UDP|5:Shutdown>" << std::endl;
     return 1;
   }
   int mode = std::atoi(argv[1]);
   switch (mode) {
-    case 1:
-      runServer();
+    case 1: {
+      std::thread serverThread(runServer);
+      std::thread clientThread(runClient);
+      serverThread.join();
+      clientThread.join();
       break;
-    case 2:
-      runClient();
+    }
+    case 2: {
+      std::thread clientThread(runSslClientIpv4);
+      clientThread.join();
       break;
-    case 3:
-      runSslClientIpv4();
+    } 
+    case 3: {
+      std::thread clientThread(runSslClientIpv6);
+      clientThread.join();
       break;
-    case 4:
-      runSslClientIpv6();
+    }
+    case 4: {
+      std::thread serverThread(runUdpServer);
+      std::thread clientThread(runUdpClient);
+      serverThread.join();
+      clientThread.join();
       break;
-   case 5:
-      runUdpServer();
+    }
+    case 5: {
+      std::thread serverThread(runServerForShutdown);
+      std::thread clientThread(runClientForShutdown, SHUT_WR);
+      std::thread clientThread2(runClientForShutdown, SHUT_RDWR);
+      serverThread.join();
+      clientThread.join();
+      clientThread2.join();
       break;
-   case 6:
-      runUdpClient();
+    }
+    default: {
+      std::cerr << "Invalid mode: " << mode << std::endl;
       break;
-    default:
-      std::cerr << 
-      "<1:server|2:client|3:ssl_client_Ipv4|4:ssl_client_Ipv6>" << 
-      std::endl;
-      return 1;
+    }
+    return 0;
   }
-
-  return 0;
 }
 
 

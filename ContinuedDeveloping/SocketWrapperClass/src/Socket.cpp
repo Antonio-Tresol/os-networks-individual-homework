@@ -9,9 +9,9 @@ int Socket::fdIsValid(int fd) {
   return fcntl(fd, F_GETFD) != -1 || errno != EBADF;
 }
 
-Socket::Socket(char SocketType, bool IPv6, bool SSL) {
+Socket::Socket(char socketType, bool IPv6, bool SSL) {
   // check if socket type is valid.
-  if (SocketType != 's' && SocketType != 'd') {
+  if (socketType != 's' && socketType != 'd') {
     throw SocketException("Invalid socket type", "Socket::Socket", EINVAL);
   }
   // Set the domain to IPv4 or IPv6
@@ -23,9 +23,9 @@ Socket::Socket(char SocketType, bool IPv6, bool SSL) {
   }
   // Set the socket type to TCP or UDP
   int socketType = 0;
-  if (SocketType == 's'){
+  if (socketType == 's'){
     socketType = SOCK_STREAM; // TCP socket (connection oriented)
-  } else if (SocketType == 'd') {
+  } else if (socketType == 'd') {
     socketType = SOCK_DGRAM; // UDP socket (connectionless)
   }
   // Create the socket

@@ -3,7 +3,7 @@
 /// Function to run the server-side TCP code.
 void runServer() {
   // Server code
-  std::cout << "Running as Server" << std::endl;
+  std::cout << "-ServerTCP- Running as Server" << std::endl;
   try {
     // We are using a TCP socket (SOCK_STREAM) over IPv4
     int port = 8080;
@@ -18,7 +18,7 @@ void runServer() {
     char buffer[1024];
     int bytesRead = clientSocket->Read(buffer, sizeof(buffer) - 1);
     buffer[bytesRead] = '\0';
-    std::cout << "Received: " << buffer << std::endl;
+    std::cout << "-ServerTCP- Received: " << buffer << std::endl;
     // Send a response to the client
     clientSocket->Write("Message received");
     // Close the client socket
@@ -36,6 +36,7 @@ void runServer() {
 /// Function to run the client-side TCP code.
 void runClient() {
   // Client code
+  std::cout << "-ClientTCP- Running as Client" << std::endl;
   try {
     // We are using a TCP socket (SOCK_STREAM) over IPv4
     const char *host = "127.0.0.1"; // Change from "localhost" to "127.0.0.1"
@@ -49,7 +50,7 @@ void runClient() {
     char buffer[1024];
     int bytesRead = clientSocket.Read(buffer, sizeof(buffer) - 1);
     buffer[bytesRead] = '\0';
-    std::cout << "Server response: " << buffer << std::endl;
+    std::cout << "-ClientTCP- Server response: " << buffer << std::endl;
   }
   catch (const SocketException &e) {
     std::cerr << "Client error: " << e.what() << std::endl;
@@ -61,6 +62,7 @@ void runClient() {
 // Function to run the SSL client-side code.
 void runSslClientIpv4() {
   // Client code
+  std::cout << "-ClientSSL- Running as Client IPV4" << std::endl;
   try {
     // We are using a TCP socket (SOCK_STREAM) over IPv4 with SSL
     const char *host = "os.ecci.ucr.ac.cr";
@@ -78,8 +80,7 @@ void runSslClientIpv4() {
     // Receive the HTTP response from the server
     char buffer[1024];
     int bytesRead;
-    while ((bytesRead = clientSocket.SSLRead(buffer, sizeof(buffer) - 1)) > 0)
-    {
+    while ((bytesRead = clientSocket.SSLRead(buffer, sizeof(buffer) - 1)) > 0) {
       buffer[bytesRead] = '\0';
       std::cout << buffer;
     }
@@ -96,6 +97,7 @@ void runSslClientIpv4() {
 //  computer running this code has IPv6 enabled.
 void runSslClientIpv6() {
   // Client code
+  std::cout << "-ClientSSL- Running as Client IPV6" << std::endl;
   try {
     // We are using a TCP socket (SOCK_STREAM) over IPv6 with SSL
     const char *host = "os.ecci.ucr.ac.cr";
@@ -117,7 +119,6 @@ void runSslClientIpv6() {
       buffer[bytesRead] = '\0';
       std::cout << buffer;
     }
-
     // Close the connection
     clientSocket.Close();
   }
@@ -127,6 +128,7 @@ void runSslClientIpv6() {
 }
 // Function to run the udp client-side code.
 void runUdpClient() {
+  std::cout << "-ClientUDP- Running as Client" << std::endl;
   int port = 8080;
   // using loopback address for testing
   const char* host = "127.0.0.1";
@@ -137,9 +139,8 @@ void runUdpClient() {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
     inet_pton(AF_INET, host, &serverAddr.sin_addr);
-
     client.sendTo(message, strlen(message) + 1, &serverAddr);
-    std::cout << "Message sent: " << message << std::endl;
+    std::cout << "-ClientUDP- Message sent: " << message << std::endl;
   } catch (const SocketException& e) {
     std::cerr << "Error: " << e.what() << std::endl;
   }
@@ -147,6 +148,7 @@ void runUdpClient() {
 /// Function to run the server-side UDP code.
 void runUdpServer() {
   int port = 8080;
+  std::cout << "-ServerUDP- Running as Server" << std::endl;
   try {
     Socket server('d'); // Create a UDP socket
     server.Bind(port);
@@ -155,8 +157,54 @@ void runUdpServer() {
     char buffer[1024];
     int bytesRead = server.recvFrom(buffer, clientAddrLen, &clientAddr);
     buffer[bytesRead] = '\0';
-    std::cout << "Message received: " << buffer << std::endl;
+    std::cout << "-ServerUDP- Message received: " << buffer << std::endl;
   } catch (const SocketException& e) {
     std::cerr << "Error: " << e.what() << std::endl;
   }
 }
+
+void runServerForShutdown() {
+  try {
+    Socket server('s'); // Create a TCP socket
+    server.Bind(5000);  // Bind it to port 5000
+    server.Listen(5);   // Listen for up to 5 connections
+    int clientCount = 0;
+    while (clientCount < 3) {
+      Socket *client = server.Accept(); // Accept incoming connections
+      // Receive messages from the client
+      char buffer[1024];
+      int bytesRead;
+      while ((bytesRead = client->Read(buffer, sizeof(buffer))) > 0) {
+        buffer[bytesRead] = '\0';
+        std::cout << "Received message from client: " << buffer << std::endl;
+      }
+      // Close the connection and delete the client object
+      client->Close();
+      delete client;
+      clientCount++;
+    }
+  } catch (const SocketException &e) {
+    std::cerr << "Server error: " << e.what() << std::endl;
+  }
+}
+
+
+void runClientForShutdown(int shutdownType) {
+  try {
+    Socket client('s'); // Create a TCP socket
+    client.Connect("127.0.0.1", 5000); // Connect to the server at 127.0.0.1 and port 5000
+    // Send a message to the server
+    const char *message = "Hello, Server!";
+    client.Write(message, strlen(message));
+    // Shutdown the client's write end, signaling the server that no more data will be sent
+    client.Shutdown(shutdownType);
+    // Give the server some time to process the message before closing the client
+    sleep(1);
+    client.Close();
+
+  } catch (const SocketException &e) {
+    std::cerr << "Client error: " << e.what() << std::endl;
+  }
+}
+
+
