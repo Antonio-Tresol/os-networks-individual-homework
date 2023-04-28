@@ -1,6 +1,6 @@
 #include <iostream>
 #include "Socket.hpp"
-// Function to run the server-side code.
+/// Function to run the server-side TCP code.
 void runServer() {
   // Server code
   std::cout << "Running as Server" << std::endl;
@@ -33,7 +33,7 @@ void runServer() {
   }
 }
 
-/// Function to run the client-side code.
+/// Function to run the client-side TCP code.
 void runClient() {
   // Client code
   try {
@@ -41,20 +41,15 @@ void runClient() {
     const char *host = "127.0.0.1"; // Change from "localhost" to "127.0.0.1"
     int port = 8080;
     Socket clientSocket('s');
-
     // Connect to the server at the given host and port
     clientSocket.Connect(host, port);
-
     // Send a message to the server
     clientSocket.Write("Hello, server!");
-
     // Receive a response from the server
     char buffer[1024];
     int bytesRead = clientSocket.Read(buffer, sizeof(buffer) - 1);
     buffer[bytesRead] = '\0';
     std::cout << "Server response: " << buffer << std::endl;
-
-    // Close the connection
   }
   catch (const SocketException &e) {
     std::cerr << "Client error: " << e.what() << std::endl;
@@ -97,8 +92,9 @@ void runSslClientIpv4() {
 }
 
 // Function to run the SSL client-side code with IPv6.
-void runSslClientIpv6()
-{
+//  DISCLAIMER: This function will only work if the server supports IPv6 and
+//  computer running this code has IPv6 enabled.
+void runSslClientIpv6() {
   // Client code
   try {
     // We are using a TCP socket (SOCK_STREAM) over IPv6 with SSL
@@ -127,5 +123,40 @@ void runSslClientIpv6()
   }
   catch (const SocketException &e) {
     std::cerr << "SSL Client IPv6 error: " << e.what() << std::endl;
+  }
+}
+// Function to run the udp client-side code.
+void runUdpClient() {
+  int port = 8080;
+  // using loopback address for testing
+  const char* host = "127.0.0.1";
+  const char* message = "Hello, server!";
+  try {
+    Socket client('d'); // Create a UDP socket
+    struct sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(port);
+    inet_pton(AF_INET, host, &serverAddr.sin_addr);
+
+    client.sendTo(message, strlen(message) + 1, &serverAddr);
+    std::cout << "Message sent: " << message << std::endl;
+  } catch (const SocketException& e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+  }
+}
+/// Function to run the server-side UDP code.
+void runUdpServer() {
+  int port = 8080;
+  try {
+    Socket server('d'); // Create a UDP socket
+    server.Bind(port);
+    struct sockaddr_in clientAddr;
+    socklen_t clientAddrLen = sizeof(clientAddr);
+    char buffer[1024];
+    int bytesRead = server.recvFrom(buffer, clientAddrLen, &clientAddr);
+    buffer[bytesRead] = '\0';
+    std::cout << "Message received: " << buffer << std::endl;
+  } catch (const SocketException& e) {
+    std::cerr << "Error: " << e.what() << std::endl;
   }
 }
