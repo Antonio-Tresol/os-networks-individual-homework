@@ -57,6 +57,7 @@ class SocketException : public std::exception {
   std::string m_message; ///< The error message associated with the exception
   std::string m_function; ///< The name of the function that failed
   int m_errorCode; ///< The error code associated with the failure
-};
+  std::string m_errorMessage; ///< The error message to return
 
+};
 #endif // SOCKET_EXCEPTION_HPP

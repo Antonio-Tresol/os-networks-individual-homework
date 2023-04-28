@@ -2,10 +2,12 @@
 
 SocketException::SocketException(const std::string& message,
     const std::string& function, int errorCode)
-    : m_message(message), m_function(function), m_errorCode(errorCode) {}
+    : m_message(message), m_function(function), m_errorCode(errorCode) {
+        this->m_message = errorMessage();
+    }
 
 const char* SocketException::what() const noexcept {
-    return errorMessage().c_str();
+    return this->m_message.c_str();
 }
 
 const std::string& SocketException::function() const noexcept {
