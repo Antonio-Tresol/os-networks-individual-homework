@@ -30,8 +30,11 @@ class Socket {
    *  Datagram sockets (SOCK_DGRAM) provide unreliable, connectionless,
    *  message-oriented communication.
    * @param	bool ipv6: if we need a IPv6 socket
+   * @param	bool ssl: if we need a SSL socket
    * @throws SocketException if the socket type is invalid.
    * @throws SocketException if the socket can't be created.
+   * @throws SocketException if the socket SSL context can't be created.
+   * @throws SocketException if the socket SSL structure can't be created.
    */
   Socket(char SocketType, bool IPv6 = false, bool SSL = false) noexcept(false);
   /**
@@ -145,7 +148,7 @@ class Socket {
   int sendTo(const void* message, int length, const void* destAddr) 
     noexcept(false);
   /**
-   * @brief recvFrom method uses recvfrom system call to receive a message from a
+   * @brief recvFrom method uses recvfrom sys call to receive a message from a
    *  UDP Socket (datagram)
    * @param void* buffer buffer to store the message
    * @param int length length of the message
@@ -169,7 +172,7 @@ class Socket {
    */
   void InitSSL() noexcept(false);
   /**
-   * @brief SSLConnect method uses SSL_connect system call to connect to a server
+   * @brief SSLConnect method uses SSL_connect sys call to connect to a server
    * @param const char* host host name
    * @param int port port number
    * @throws SocketException if can't connect to host
@@ -178,7 +181,7 @@ class Socket {
    */
   void SSLConnect(const char* host, int port) noexcept(false);
   /**
-   * @brief SSLConnect method uses SSL_connect system call to connect to a server
+   * @brief SSLConnect method uses SSL_connect sys call to connect to a server
    * @param const char* host host name
    * @param const char* service service name
    * @details service name can be a port number or a service name
@@ -205,12 +208,12 @@ class Socket {
   int SSLWrite(const void* buffer, int bufferSize) noexcept(false);
 
  private:
-  int idSocket;
-  int port;
-  bool ipv6;
-  bool isOpen;
-  SSL_CTX *SSLContext;
-  SSL *SSLStruct;
+  int idSocket;  ///< id of the socket
+  int port;  ///< port number of passive socket
+  bool ipv6;  ///< true if the socket is ipv6
+  bool isOpen;  ///< true if the socket is open
+  SSL_CTX *SSLContext;  ///< SSL context if the socket is SSL
+  SSL *SSLStruct;  ///< SSL structure if the socket is SSL
   /**
  * @brief Checks if the given file descriptor is valid or not.
  *
@@ -255,7 +258,7 @@ class Socket {
    *
    * @param fd The file descriptor to be checked.
    * @param timeoutSec The number of seconds to wait before timing out.
-   * @param timeoutMicroSec The number of microseconds to wait before timing out.
+   * @param timeoutMicroSec The number of microseconds to wait before time out.
    * @return true if the file descriptor is ready to read from, 0 if the file
    *  descriptor is not ready to read from, and -1 if there is an error.
    */

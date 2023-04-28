@@ -42,6 +42,9 @@ Socket::Socket(char SocketType, bool IPv6, bool SSL) {
       throw_with_nested(SocketException("Error Creating Socket",
         "Socket::Socket", errno));
     }
+  } else {
+    this->SSLContext = nullptr;
+    this->SSLStruct = nullptr;
   }
   this->isOpen = true;
 }
