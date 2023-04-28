@@ -5,10 +5,11 @@
 #include "Socket.hpp"
 
 int Socket::fdIsValid(int fd) {
+  // checks if the file descriptor is valid
   return fcntl(fd, F_GETFD) != -1 || errno != EBADF;
 }
 
-Socket::Socket(char SocketType, bool IPv6) {
+Socket::Socket(char SocketType, bool IPv6, bool SSL) {
   // check if socket type is valid.
   if (SocketType != 's' && SocketType != 'd') {
     throw SocketException("Invalid socket type", "Socket::Socket", EINVAL);
@@ -32,13 +33,21 @@ Socket::Socket(char SocketType, bool IPv6) {
   if (this->idSocket == -1) {
     throw SocketException("Error creating socket", "Socket::Socket", errno);
   }
-  this->SSLContext = nullptr;
-  this->SSLStruct = nullptr;
+  // Prepare socket if SSL is enabled
+  if (SSL) {
+    try {
+      this->InitSSLContext();
+      this->InitSSL();
+    } catch (const SocketException &e) {
+      throw_with_nested(SocketException("Error Creating Socket",
+        "Socket::Socket", errno));
+    }
+  }
+  this->isOpen = true;
 }
 
 Socket::Socket(int socketDescriptor) {
-  if (fdIsValid(socketDescriptor) == 0)
-  {
+  if (fdIsValid(socketDescriptor) == 0) {
     throw SocketException("Invalid socket descriptor", "Socket::Socket", errno);
   }
   this->idSocket = socketDescriptor;
@@ -47,11 +56,13 @@ Socket::Socket(int socketDescriptor) {
 }
 
 Socket::~Socket() {
-  try {
-    this->Close();
-  }
-  catch (SocketException &e) {
-    std::cerr << e.what() << std::endl;
+  if (this->isOpen) {
+    try {
+      this->Close();
+    }
+    catch (SocketException &e) {
+      std::cerr << e.what() << std::endl;
+    }
   }
 }
 
@@ -66,6 +77,7 @@ void Socket::Close() {
   if (this->SSLStruct != nullptr) {
     SSL_free(this->SSLStruct);
   }
+  this->isOpen = false;
 }
 
 void Socket::connectIPv4(const char *host, int port) {
@@ -82,7 +94,7 @@ void Socket::connectIPv4(const char *host, int port) {
     throw SocketException("Invalid IPv4 address", "Socket::Connect", EINVAL);
   } else if (st == -1) {
     throw SocketException("Error converting IPv4 address", "Socket::Connect",
-                          errno);
+      errno);
   }
   // sin_port is the port number we want to connect to. it is a 16-bit integer
   // network byte order is big endian, host byte order is little endian, so we
@@ -95,7 +107,7 @@ void Socket::connectIPv4(const char *host, int port) {
   st = connect(idSocket, hostIpv4Ptr, hostIpv4Len);
   if (st == -1){
     throw SocketException("Error connecting to IPv4 address", "Socket::Connect",
-                          errno);
+      errno);
   }
 }
 
@@ -111,7 +123,7 @@ void Socket::connectIPv6(const char *host, int port) {
     throw SocketException("Invalid IPv6 address", "Socket::Connect", EINVAL);
   } else if (st == -1) {
     throw SocketException("Error converting IPv6 address", "Socket::Connect",
-                          errno);
+      errno);
   }
   // sin_port is the port number we want to connect to. it is a 16-bit integer
   hostIpv6.sin6_port = htons(port);
@@ -122,7 +134,7 @@ void Socket::connectIPv6(const char *host, int port) {
   st = connect(idSocket, hostIpv6Ptr, hostIpv6Len);
   if (st == -1) {
     throw SocketException("Error connecting to IPv6 address", "Socket::Connect",
-                          errno);
+      errno);
   }
 }
 
@@ -248,7 +260,7 @@ void Socket::bindIPv6(int port) {
   }
 }
 
-int Socket::Bind(int port) {
+void Socket::Bind(int port) {
   try {
     if (this->ipv6) {
       this->bindIPv6(port);
@@ -287,8 +299,8 @@ void Socket::Shutdown(int mode) {
   }
 }
 
-void Socket::SetIDSocket(int id) {
-  this->idSocket = id;
+ void Socket::SetIDSocket(int newId) noexcept(true) {
+  this->idSocket = newId;
 }
 
 int Socket::sendTo(const void *message, int length, const void *destAddr){
@@ -363,7 +375,7 @@ void Socket::SSLConnect(const char* host, int port) {
   st = SSL_set_fd(this->SSLStruct, this->idSocket);
   if (-1 == st) {
     throw SocketException("Error setting SSL file descriptor",
-                          "Socket::SSLConnect", errno);
+      "Socket::SSLConnect", errno);
   }
   st = SSL_connect(this->SSLStruct);
   if (-1 == st) {
@@ -394,9 +406,13 @@ void Socket::SSLConnect(const char *host, const char *service){
 
 int Socket::SSLRead(void *buffer, int bufferSize){
   int nBytesRead = -1;
-  if (isReadyToRead(this->idSocket, 5)  == false) {
-    throw SocketException("Error reading from SSLSocket", "Socket::SSLRead",
-      errno);
+  try {
+    if (isReadyToRead(this->idSocket, 5)  == false) {
+      throw SocketException("Error reading from SSLSocket", "Socket::SSLRead",
+        errno);
+    }
+  } catch (SocketException &e) {
+    throw;
   }
   do {
     nBytesRead = SSL_read(this->SSLStruct, buffer, bufferSize);
@@ -433,24 +449,36 @@ int Socket::SSLWrite(const void *buffer, int bufferSize) {
       SSLWrite(buffer, bufferSize);
     } else {
       throw SocketException("Error writing to SSL socket", 
-                            "Socket::SSLWrite", errno);
+        "Socket::SSLWrite", errno);
     }
   }
 
   return nBytesWritten;
 }
-
-bool Socket::isReadyToRead(int fd, int timeoutSec, int timeoutMicroSec) {
+bool Socket::isReadyToRead(int timeoutSec, int timeoutMicroSec) {
+  // Declare a set of file descriptors to monitor for reading.
   fd_set readSet;
+  // Initialize the set to have zero bits for all file descriptors.
   FD_ZERO(&readSet);
+  // Add the socket's file descriptor to the set.
   FD_SET(this->idSocket, &readSet);
+  // Declare a timeval structure to specify the timeout.
   timeval timeout;
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 0;
+  // Set the timeval structure's seconds field to the input timeoutSec.
+  timeout.tv_sec = timeoutSec;
+  // Set the timeval structure's microseconds field to the input timeoutMicroSec.
+  timeout.tv_usec = timeoutMicroSec;
+  // Call the select() syscall to check file descriptor set for readability.
+  // It returns the number of ready file descriptors, or -1 if an error.
   int st = select(this->idSocket + 1, &readSet, nullptr, nullptr, &timeout);
+  // Check if the select() function returned -1 (indicating an error).
   if (-1 == st){
+    // If an error occurred, throw SocketException with description of error,
+    // the function name, and the error number.
     throw SocketException("Error checking if socket is ready to read",
       "Socket::isReadyToRead", errno);
   }
-  return FD_ISSET(this->idSocket, &readSet);
+  // Return true if the select() function indicated that the socket's fd
+  // is ready for reading, otherwise return false.
+  return (st > 0 && FD_ISSET(this->idSocket, &readSet));
 }

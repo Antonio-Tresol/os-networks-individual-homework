@@ -33,7 +33,7 @@ class Socket {
    * @throws SocketException if the socket type is invalid.
    * @throws SocketException if the socket can't be created.
    */
-  Socket(char SocketType, bool IPv6 = false) noexcept(false);
+  Socket(char SocketType, bool IPv6 = false, bool SSL = false) noexcept(false);
   /**
    * @brief constructor for socket, using existing socket descriptor.
    * @param int socketDescriptor
@@ -113,7 +113,7 @@ class Socket {
    * @param int port port number
    * @throws SocketException if can't bind to socket
    */
-  int Bind(int port) noexcept(false);
+  void Bind(int port) noexcept(false);
   /**
    * @brief accept method uses accept system call to accepts an incoming
    *  connection on a listening stream socket.
@@ -208,6 +208,7 @@ class Socket {
   int idSocket;
   int port;
   bool ipv6;
+  bool isOpen;
   SSL_CTX *SSLContext;
   SSL *SSLStruct;
   /**
@@ -255,10 +256,10 @@ class Socket {
    * @param fd The file descriptor to be checked.
    * @param timeoutSec The number of seconds to wait before timing out.
    * @param timeoutMicroSec The number of microseconds to wait before timing out.
-   * @return 1 if the file descriptor is ready to read from, 0 if the file
+   * @return true if the file descriptor is ready to read from, 0 if the file
    *  descriptor is not ready to read from, and -1 if there is an error.
    */
-  bool isReadyToRead(int fd, int timeoutSec, int timeoutMicroSec = 0) 
+  bool isReadyToRead(int timeoutSec, int timeoutMicroSec = 0) 
     noexcept(false);
 };
 #endif
