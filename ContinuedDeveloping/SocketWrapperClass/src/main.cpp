@@ -1,9 +1,18 @@
-#include "test.hpp"
+// Copyright 2023 Antonio Badilla Olivas <anthonny.badilla@ucr.ac.cr>.
 #include <thread>
+
+#include "test.hpp"
+/**
+ * @file main.cpp
+ * @brief main to run test for .
+ */
+
 int main(int argc, char *argv[]) {
   if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << 
-      " <1:server and client TCP|2:ssl client Ipv4|3:ssl client Ipv6|4:Server and Client UDP|5:Shutdown>" << std::endl;
+    std::cerr << "Usage: " << argv[0]
+              << " <1:server and client TCP|2:ssl client Ipv4|3:ssl client "
+                 "Ipv6|4:Server and Client UDP|5:Shutdown>"
+              << std::endl;
     return 1;
   }
   int mode = std::atoi(argv[1]);
@@ -19,7 +28,7 @@ int main(int argc, char *argv[]) {
       std::thread clientThread(runSslClientIpv4);
       clientThread.join();
       break;
-    } 
+    }
     case 3: {
       std::thread clientThread(runSslClientIpv6);
       clientThread.join();
@@ -45,8 +54,6 @@ int main(int argc, char *argv[]) {
       std::cerr << "Invalid mode: " << mode << std::endl;
       break;
     }
-    return 0;
+      return 0;
   }
 }
-
-

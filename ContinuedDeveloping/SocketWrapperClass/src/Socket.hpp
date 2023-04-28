@@ -2,19 +2,20 @@
 // based on the code from Francisco Arroyo Mora, 2023, modified based on
 // book "The Linux Programming Interface" by Michael Kerrisk, 2010
 // chapeters 59-61.
-#include <stdio.h>
-#include <iostream>
+/**
+ * @file Socket.hpp
+ * @brief Defines a wrapper for the sys/socket.h library.
+ */
+#include <arpa/inet.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <netdb.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+
+#include <iostream>
+
 #include "SocketException.hpp"
 
 #ifndef SOCKET_HPP
@@ -24,11 +25,11 @@ class Socket {
  public:
   /**
    * @brief Class constructor for sys/socket wrapper (builds active socket)
-   * @param	char type: socket type to define ('s' for stream 'd' for datagram)
-   *  Stream sockets (SOCK_STREAM) provide a reliable, bidirectional byte-stream
-   *  communication channel between two endpoints (connection oriented).
-   *  Datagram sockets (SOCK_DGRAM) provide unreliable, connectionless,
-   *  message-oriented communication.
+   * @param	char type: socket type to define ('s' for stream 'd' for
+   * datagram) Stream sockets (SOCK_STREAM) provide a reliable, bidirectional
+   * byte-stream communication channel between two endpoints (connection
+   * oriented). Datagram sockets (SOCK_DGRAM) provide unreliable,
+   * connectionless, message-oriented communication.
    * @param	bool ipv6: if we need a IPv6 socket
    * @param	bool ssl: if we need a SSL socket
    * @throws SocketException if the socket type is invalid.
@@ -36,38 +37,58 @@ class Socket {
    * @throws SocketException if the socket SSL context can't be created.
    * @throws SocketException if the socket SSL structure can't be created.
    */
-  Socket(char SocketType, bool IPv6 = false, bool SSL = false) noexcept(false);
+  Socket(char SocketType, bool isIpv6 = false,
+         bool isSsl = false) noexcept(false);
   /**
    * @brief Class constructor for sys/socket wrapper (builds passive socket)
-   * @param	char type: socket type to define ('s' for stream 'd' for datagram)
-   *  Stream sockets (SOCK_STREAM) provide a reliable, bidirectional byte-stream
-   *  communication channel between two endpoints (connection oriented).
-   *  Datagram sockets (SOCK_DGRAM) provide unreliable, connectionless,
-   *  message-oriented communication.
+   * @param	char type: socket type to define ('s' for stream 'd' for
+   * datagram) Stream sockets (SOCK_STREAM) provide a reliable, bidirectional
+   * byte-stream communication channel between two endpoints (connection
+   * oriented). Datagram sockets (SOCK_DGRAM) provide unreliable,
+   * connectionless, message-oriented communication.
    * @param	int port: port number to bind to
    * @param	bool ipv6: if we need a IPv6 socket
-   * @param	bool ssl: if we need a SSL socket
+   * @throws SocketException if the socket type is invalid.
+   * @throws SocketException if the socket can't be created.
+   */
+  Socket(char socketType, int port, bool isIpv6 = false) noexcept(false);
+  /**
+   * @brief Class constructor for sys/socket wrapper (builds passive SSLsocket)
+   * @param	char type: socket type to define ('s' for stream 'd' for
+   * datagram) Stream sockets (SOCK_STREAM) provide a reliable, bidirectional
+   * byte-stream communication channel between two endpoints (connection
+   * oriented). Datagram sockets (SOCK_DGRAM) provide unreliable,
+   * connectionless, message-oriented communication.
+   * @param	int port: port number to bind to
+   * @param	bool ipv6: if we need a IPv6 socket
+   * @param	const char* certFileName: certificate file name
+   * @param	const char* keyFileName: key file name
    * @throws SocketException if the socket type is invalid.
    * @throws SocketException if the socket can't be created.
    * @throws SocketException if the socket SSL context can't be created.
    * @throws SocketException if the socket SSL structure can't be created.
    */
-  Socket(char SocketType, int port, bool IPv6 = false, bool SSL = false) 
-    noexcept(false); // TODO: implement port
+  Socket(char socketType, int port, const char* certFileName,
+         const char* keyFileName, bool isIpv6 = false) noexcept(false);
   /**
    * @brief constructor for socket, using existing socket descriptor.
    * @param int socketDescriptor
    * @details used for accepting connections, used by the accept method.
    * @throws SocketException if the socket descriptor is invalid.
    */
-  Socket(int socketDescriptor) noexcept(false);
+  explicit Socket(int socketDescriptor) noexcept(false) {
+    if (fdIsValid(socketDescriptor) == 0) {
+      throw SocketException("Invalid socket descriptor", "Socket(int)");
+    }
+    this->idSocket = socketDescriptor;
+  }
   /**
    * @brief default constructor
    * @details closes socket file descriptor and frees SSL context and structure
    * @throws SocketException if the socket can't be closed.
    */
   ~Socket() noexcept(true);
-    /**
+  /**
    * @brief Close method uses "close" Unix system call. it closes socket file
    * descriptor and frees SSL context and structure if they exist.
    * @throws SocketException if the socket can't be closed.
@@ -162,8 +183,8 @@ class Socket {
    * @return int number of bytes sent
    * @throws SocketException if can't send message
    */
-  int sendTo(const void* message, int length, const void* destAddr) 
-    noexcept(false);
+  int sendTo(const void* message, int length,
+             const void* destAddr) noexcept(false);
   /**
    * @brief recvFrom method uses recvfrom sys call to receive a message from a
    *  UDP Socket (datagram)
@@ -192,7 +213,7 @@ class Socket {
    * @throws SocketException if can't set SSL file descriptor
    * @throws SocketException if can't connect to SSL host
    */
-  void SSLConnect(const char* host, const char * service) noexcept(false);
+  void SSLConnect(const char* host, const char* service) noexcept(false);
   /**
    * @brief: SSLRead method uses SSL_read system call to read from a socket
    * @param: void* buffer buffer to store the message
@@ -208,33 +229,43 @@ class Socket {
    * @return int number of bytes written
    * @throws SocketException if can't write to SSL socket
    */
-  int SSLWrite(const void* buffer, int bufferSize) noexcept(false); //TODO implement 
+  int SSLWrite(const void* buffer, int bufferSize) noexcept(false);
   /**
    * @brief Construct a new SSL * variable from a previously created context.
-   * Constructs a new SSL * variable from a previously created context using the original socket.
+   * Constructs a new SSL * variable from a previously created context using the
+   * original socket.
    * @param originalSocket Original socket with a previously created context.
    * @return SSL* A new SSL * variable.
-   */ 
-  void SSLCreate(Socket* original) noexcept(false);  // TODO implement
+   */
+  void SSLCreate(Socket* original) noexcept(false);
   /**
    * @brief Wait for a TLS/SSL client to initiate the TLS/SSL handshake.
-   * @details Waits for a TLS/SSL client to initiate the TLS/SSL 
+   * @details Waits for a TLS/SSL client to initiate the TLS/SSL
    *  handshake and negotiates the TLS/SSL connection through a handshake.
-   */ 
-  void SSLAccept() noexcept(false);  // TODO implement
+   */
+  void SSLAccept() noexcept(false);
   /**
    * @brief Get the cipher used by the current SSL connection.
    * @return const char* The cipher used by the current SSL connection.
-  */
-  const char* SSLGetCipher() noexcept(true);  // TODO implement
-  
+   */
+  const char* SSLGetCipher() noexcept(true);
+  /**
+   * @brief starts all Openssl libraries to get error information.
+   * @throws SocketException if can't start libraries
+   * @details According to OpenSSL documentation is called automatically since
+   *  version 1.1.0. It is added here for backwards compatibility.
+   *  It must be call before any other function that uses Openssl
+   *  libraries so that the error information can be retrieved.
+   */
+  void SSLStartLibrary() noexcept(false);
+
  private:
-  int idSocket;  ///< id of the socket
-  int port;  ///< port number of passive socket
-  bool ipv6;  ///< true if the socket is ipv6
-  bool isOpen;  ///< true if the socket is open
-  SSL_CTX *SSLContext;  ///< SSL context if the socket is SSL
-  SSL *SSLStruct;  ///< SSL structure if the socket is SSL
+  int idSocket{0};               ///< id of the socket
+  int port{0};                   ///< port number of passive socket
+  bool ipv6{false};              ///< true if the socket is ipv6
+  bool isOpen{false};            ///< true if the socket is open
+  SSL_CTX* SSLContext{nullptr};  ///< SSL context if the socket is SSL
+  SSL* SSLStruct{nullptr};       ///< SSL structure if the socket is SSL
   /**
    * @private
    * @brief Checks if the given file descriptor is valid or not.
@@ -289,26 +320,38 @@ class Socket {
    * @return true if the file descriptor is ready to read from, 0 if the file
    *  descriptor is not ready to read from, and -1 if there is an error.
    */
-  bool isReadyToRead(int timeoutSec, int timeoutMicroSec = 0) 
-    noexcept(false);
+  bool isReadyToRead(int timeoutSec, int timeoutMicroSec = 0) noexcept(false);
+  /**
+   * Uses the select() function to monitor the socket file descriptor for
+   * reading or writing, depending on the error parameter.
+   *
+   * @param error An error code to determine whether to monitor the socket for
+   *  reading or writing. If error is SSL_ERROR_WANT_READ, the
+   *  socket will be monitored for reading. Otherwise, it will be monitored for
+   *  writing.
+   * @return The result of the select() function, which indicates whether the
+   *  socket is ready for reading or writing. Returns -1 on error, 0 if
+   *  the select timed out, or a positive integer if the socket is ready.
+   */
+  int readyToReadWrite(int error) noexcept(true);
   /**
    * @private
    * @brief Initialize SSL server context.
    * @details Uses SSL_library_init, OpenSSL_add_all_algorithms,
-   *  SSL_load_error_strings, TLS_server_method, and SSL_CTX_new 
-   *  to create a new SSL server context 
+   *  SSL_load_error_strings, TLS_server_method, and SSL_CTX_new
+   *  to create a new SSL server context
    *  for encrypted communications. This context is stored in class instance.
-   */ 
-  void SSLInitServerContext() noexcept(false); // TODO: IMPLEMENT
+   */
+  void SSLInitServerContext() noexcept(false);
   /**
    * @brief Initialize server SSL object.
    * @details Uses SSL_CTX_new and SSL_new to create a new SSL object for server
    *  connections with the defined context.
    * @param certFileName File containing the certificate.
    * @param keyFileName File containing the keys.
-   */ 
-  void SSLInitServer(const char* certFileName, const char *keyFileName) // TODO: IMPLEMENT
-    noexcept(false);
+   */
+  void SSLInitServer(const char* certFileName,
+                     const char* keyFileName) noexcept(false);
   /**
    * @private
    * @brief Load certificates
@@ -316,15 +359,15 @@ class Socket {
    * @param certFileName File containing the certificate.
    * @param keyFileName File containing the keys.
    */
-  void SSLLoadCertificates(const char* certFileName, const char* keyFileName) // TODO: IMPLEMENT
-    noexcept(false);
+  void SSLLoadCertificates(const char* certFileName,
+                           const char* keyFileName) noexcept(false);
   /**
    * @private
    * @brief Show SSL certificates.
-   * 
+   *
    * Displays the SSL certificates identified in the connection.
-   */ 
-  void SSLShowCerts() noexcept(false); // TODO: IMPLEMENT
+   */
+  void SSLShowCerts() noexcept(true);
   /**
    * @private
    * @brief SSLInitContext method initializes the SSL context
