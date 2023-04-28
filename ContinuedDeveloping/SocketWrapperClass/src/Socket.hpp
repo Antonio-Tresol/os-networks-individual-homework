@@ -23,7 +23,7 @@
 class Socket {
  public:
   /**
-   * @brief Class constructor for sys/socket wrapper
+   * @brief Class constructor for sys/socket wrapper (builds active socket)
    * @param	char type: socket type to define ('s' for stream 'd' for datagram)
    *  Stream sockets (SOCK_STREAM) provide a reliable, bidirectional byte-stream
    *  communication channel between two endpoints (connection oriented).
@@ -37,6 +37,23 @@ class Socket {
    * @throws SocketException if the socket SSL structure can't be created.
    */
   Socket(char SocketType, bool IPv6 = false, bool SSL = false) noexcept(false);
+  /**
+   * @brief Class constructor for sys/socket wrapper (builds passive socket)
+   * @param	char type: socket type to define ('s' for stream 'd' for datagram)
+   *  Stream sockets (SOCK_STREAM) provide a reliable, bidirectional byte-stream
+   *  communication channel between two endpoints (connection oriented).
+   *  Datagram sockets (SOCK_DGRAM) provide unreliable, connectionless,
+   *  message-oriented communication.
+   * @param	int port: port number to bind to
+   * @param	bool ipv6: if we need a IPv6 socket
+   * @param	bool ssl: if we need a SSL socket
+   * @throws SocketException if the socket type is invalid.
+   * @throws SocketException if the socket can't be created.
+   * @throws SocketException if the socket SSL context can't be created.
+   * @throws SocketException if the socket SSL structure can't be created.
+   */
+  Socket(char SocketType, int port, bool IPv6 = false, bool SSL = false) 
+    noexcept(false); // TODO: implement port
   /**
    * @brief constructor for socket, using existing socket descriptor.
    * @param int socketDescriptor
@@ -158,20 +175,6 @@ class Socket {
    */
   int recvFrom(void* buffer, int length, void* srcAddr) noexcept(false);
   /**
-   * @brief InitSSLContext method initializes the SSL context
-   * @details uses the TLS_client_method to create a new context
-   * @throws SocketException if can't create SSL context
-   * @throws SocketException if can't create SSL method
-   */
-  void InitSSLContext() noexcept(false);
-  /**
-   * @brief InitSSLContext method initializes the SSL context
-   * @details uses openssl library to initialize the SSL context
-   * @throws SocketException if can't create SSL context
-   * @throws SocketException if can't create SSL method
-   */
-  void InitSSL() noexcept(false);
-  /**
    * @brief SSLConnect method uses SSL_connect sys call to connect to a server
    * @param const char* host host name
    * @param int port port number
@@ -205,8 +208,26 @@ class Socket {
    * @return int number of bytes written
    * @throws SocketException if can't write to SSL socket
    */
-  int SSLWrite(const void* buffer, int bufferSize) noexcept(false);
-
+  int SSLWrite(const void* buffer, int bufferSize) noexcept(false); //TODO implement 
+  /**
+   * @brief Construct a new SSL * variable from a previously created context.
+   * Constructs a new SSL * variable from a previously created context using the original socket.
+   * @param originalSocket Original socket with a previously created context.
+   * @return SSL* A new SSL * variable.
+   */ 
+  void SSLCreate(Socket* original) noexcept(false);  // TODO implement
+  /**
+   * @brief Wait for a TLS/SSL client to initiate the TLS/SSL handshake.
+   * @details Waits for a TLS/SSL client to initiate the TLS/SSL 
+   *  handshake and negotiates the TLS/SSL connection through a handshake.
+   */ 
+  void SSLAccept() noexcept(false);  // TODO implement
+  /**
+   * @brief Get the cipher used by the current SSL connection.
+   * @return const char* The cipher used by the current SSL connection.
+  */
+  const char* SSLGetCipher() noexcept(true);  // TODO implement
+  
  private:
   int idSocket;  ///< id of the socket
   int port;  ///< port number of passive socket
@@ -215,32 +236,36 @@ class Socket {
   SSL_CTX *SSLContext;  ///< SSL context if the socket is SSL
   SSL *SSLStruct;  ///< SSL structure if the socket is SSL
   /**
- * @brief Checks if the given file descriptor is valid or not.
- *
- * @param fd The file descriptor to be checked for validity.
- * @return 1 if the file descriptor is valid or there's an error other than a
- *  bad file descriptor, and 0 if the file descriptor is invalid.
- */
+   * @private
+   * @brief Checks if the given file descriptor is valid or not.
+   *
+   * @param fd The file descriptor to be checked for validity.
+   * @return 1 if the file descriptor is valid or there's an error other than a
+   *  bad file descriptor, and 0 if the file descriptor is invalid.
+   */
   int fdIsValid(int fd);
   /**
- * @brief Connects to an IPv4 host at the specified port number.
- *
- * @param host The IPv4 address of the host in dotted-decimal notation.
- * @param port The port number to connect to.
- * @throws SocketException If there is an error connecting to the host.
- * @throws SocketException If the IPv4 address is invalid.
- */
+   * @private
+   * @brief Connects to an IPv4 host at the specified port number.
+   *
+   * @param host The IPv4 address of the host in dotted-decimal notation.
+   * @param port The port number to connect to.
+   * @throws SocketException If there is an error connecting to the host.
+   * @throws SocketException If the IPv4 address is invalid.
+   */
   void connectIPv4(const char* host, int port) noexcept(false);
   /**
- * @brief Connects to an IPv6 host at the specified port number.
- *
- * @param host The IPv6 address of the host in dotted-decimal notation.
- * @param port The port number to connect to.
- * @throws SocketException If there is an error connecting to the host.
- * @throws SocketException If the IPv6 address is invalid.
- */
+   * @private
+   * @brief Connects to an IPv6 host at the specified port number.
+   *
+   * @param host The IPv6 address of the host in dotted-decimal notation.
+   * @param port The port number to connect to.
+   * @throws SocketException If there is an error connecting to the host.
+   * @throws SocketException If the IPv6 address is invalid.
+   */
   void connectIPv6(const char* host, int port) noexcept(false);
   /**
+   * @private
    * @brief Binds the socket to an IPv4 address and port number.
    *
    * @param port The port number to bind to.
@@ -248,12 +273,14 @@ class Socket {
    */
   void bindIPv4(int port) noexcept(false);
   /**
+   * @private
    * @brief Binds the socket to an IPv6 address and port number.
    * @param port The port number to bind to.
    * @throws SocketException If there is an error binding to the socket.
    */
   void bindIPv6(int port) noexcept(false);
   /**
+   * @private
    * @brief Checks if the given file descriptor is ready to read from.
    *
    * @param fd The file descriptor to be checked.
@@ -264,5 +291,55 @@ class Socket {
    */
   bool isReadyToRead(int timeoutSec, int timeoutMicroSec = 0) 
     noexcept(false);
+  /**
+   * @private
+   * @brief Initialize SSL server context.
+   * @details Uses SSL_library_init, OpenSSL_add_all_algorithms,
+   *  SSL_load_error_strings, TLS_server_method, and SSL_CTX_new 
+   *  to create a new SSL server context 
+   *  for encrypted communications. This context is stored in class instance.
+   */ 
+  void SSLInitServerContext() noexcept(false); // TODO: IMPLEMENT
+  /**
+   * @brief Initialize server SSL object.
+   * @details Uses SSL_CTX_new and SSL_new to create a new SSL object for server
+   *  connections with the defined context.
+   * @param certFileName File containing the certificate.
+   * @param keyFileName File containing the keys.
+   */ 
+  void SSLInitServer(const char* certFileName, const char *keyFileName) // TODO: IMPLEMENT
+    noexcept(false);
+  /**
+   * @private
+   * @brief Load certificates
+   * @details Verifies and loads the certificates specified as parameters.
+   * @param certFileName File containing the certificate.
+   * @param keyFileName File containing the keys.
+   */
+  void SSLLoadCertificates(const char* certFileName, const char* keyFileName) // TODO: IMPLEMENT
+    noexcept(false);
+  /**
+   * @private
+   * @brief Show SSL certificates.
+   * 
+   * Displays the SSL certificates identified in the connection.
+   */ 
+  void SSLShowCerts() noexcept(false); // TODO: IMPLEMENT
+  /**
+   * @private
+   * @brief SSLInitContext method initializes the SSL context
+   * @details uses the TLS_client_method to create a new context
+   * @throws SocketException if can't create SSL context
+   * @throws SocketException if can't create SSL method
+   */
+  void SSLInitContext() noexcept(false);
+  /**
+   * @private
+   * @brief SSLInitContext method initializes the SSL context
+   * @details uses openssl library to initialize the SSL context
+   * @throws SocketException if can't create SSL context
+   * @throws SocketException if can't create SSL method
+   */
+  void SSLInit() noexcept(false);
 };
 #endif

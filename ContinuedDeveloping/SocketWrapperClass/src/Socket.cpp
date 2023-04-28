@@ -22,22 +22,22 @@ Socket::Socket(char socketType, bool IPv6, bool SSL) {
     this->ipv6 = true;
   }
   // Set the socket type to TCP or UDP
-  int socketType = 0;
+  int type = 0;
   if (socketType == 's'){
-    socketType = SOCK_STREAM; // TCP socket (connection oriented)
+    type = SOCK_STREAM; // TCP socket (connection oriented)
   } else if (socketType == 'd') {
-    socketType = SOCK_DGRAM; // UDP socket (connectionless)
+    type = SOCK_DGRAM; // UDP socket (connectionless)
   }
   // Create the socket
-  this->idSocket = socket(domain, socketType, 0);
+  this->idSocket = socket(domain, type, 0);
   if (this->idSocket == -1) {
     throw SocketException("Error creating socket", "Socket::Socket", errno);
   }
   // Prepare socket if SSL is enabled
   if (SSL) {
     try {
-      this->InitSSLContext();
-      this->InitSSL();
+      this->SSLInitContext();
+      this->SSLInit();
     } catch (const SocketException &e) {
       throw_with_nested(SocketException("Error Creating Socket",
         "Socket::Socket", errno));
@@ -332,39 +332,66 @@ int Socket::recvFrom(void *buffer, int length, void *srcAddr) {
   return nBytesReceived;
 }
 
-void Socket::InitSSLContext(){
+void Socket::SSLInitContext(){
   // We must create a method to define our context
   const SSL_METHOD *method = TLS_client_method();
   if (method == nullptr) {
-    throw SocketException("Error creating SSL method", "Socket::InitSSLContext",
+    throw SocketException("Error creating SSL method", "Socket::SSLInitContext",
       errno);
   }
   // build a new SSL context using the method
   SSL_CTX *context = SSL_CTX_new(method);
   if (context == nullptr) {
-    throw SocketException("Error creating SSL Ctx", "Socket::InitSSLContext",
+    throw SocketException("Error creating SSL Ctx", "Socket::SSLInitContext",
       errno);
   }
   this->SSLContext = context;
 }
 /**
- * @brief InitSSLContext method initializes the SSL context
+ * @brief SSLInitContext method initializes the SSL context
  * @details uses openssl library to initialize the SSL context
  * @throws SocketException if can't create SSL context
  * @throws SocketException if can't create SSL method
  */
-void Socket::InitSSL() {
+void Socket::SSLInit() {
   // Create a SSL socket, a new context must be created before
   try {
-    this->InitSSLContext();
+    this->SSLInitContext();
   } catch (SocketException &e) {
     throw;
   }
   SSL *ssl = SSL_new(this->SSLContext);
   if (ssl == nullptr) {
-    throw SocketException("Error creating SSL", "Socket::InitSSL", errno);
+    throw SocketException("Error creating SSL", "Socket::SSLInit", errno);
   }
   this->SSLStruct = ssl;
+}
+void Socket::SSLInitServerContext(){
+  // TODO: Implement
+}
+void Socket::SSLInitServer(const char* certFileName, const char *keyFileName) {
+   // TODO: Implement
+   (void)certFileName;
+   (void)keyFileName;
+}
+
+void Socket::SSLLoadCertificates(const char* certFileName,
+  const char* keyFileName) {
+  // TODO: Implement
+  (void)certFileName;
+  (void)keyFileName;
+}
+
+void Socket::SSLShowCerts() {
+  // TODO: Implement
+}
+void Socket::SSLCreate(Socket* original) {
+  // TODO: Implement
+  (void)original;
+}
+
+void Socket::SSLAccept() {
+  // TODO: Implement
 }
 
 void Socket::SSLConnect(const char* host, int port) {
@@ -455,7 +482,6 @@ int Socket::SSLWrite(const void *buffer, int bufferSize) {
         "Socket::SSLWrite", errno);
     }
   }
-
   return nBytesWritten;
 }
 bool Socket::isReadyToRead(int timeoutSec, int timeoutMicroSec) {
