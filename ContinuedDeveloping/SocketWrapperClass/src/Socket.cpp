@@ -79,7 +79,7 @@ Socket::Socket(char socketType, int port, bool isIpv6) noexcept(false) {
   }
 }
 Socket::Socket(char socketType, int port, const char *certFileName,
-               const char *keyFileName, bool isIpv6 = false) {
+               const char *keyFileName, bool isIpv6) {
   // check if socket type is valid.
   if (socketType != 's' && socketType != 'd') {
     throw SocketException("Invalid socket type", "Socket::Socket", EINVAL);
