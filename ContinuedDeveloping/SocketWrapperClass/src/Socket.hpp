@@ -248,7 +248,7 @@ class Socket {
    * @brief Get the cipher used by the current SSL connection.
    * @return const char* The cipher used by the current SSL connection.
    */
-  const char* SSLGetCipher() noexcept(true);
+  const char* SSLGetCipher() noexcept(false);
   /**
    * @brief starts all Openssl libraries to get error information.
    * @throws SocketException if can't start libraries
@@ -258,6 +258,23 @@ class Socket {
    *  libraries so that the error information can be retrieved.
    */
   void SSLStartLibrary() noexcept(false);
+  /**
+   * @private
+   * @brief SSLInitContext method initializes the SSL context
+   * @details uses openssl library to initialize the SSL context
+   * @throws SocketException if can't create SSL context
+   * @throws SocketException if can't create SSL method
+   */
+  void SSLInit() noexcept(false);
+  /**
+   * @private
+   * @brief Initialize SSL server context.
+   * @details Uses SSL_library_init, OpenSSL_add_all_algorithms,
+   *  SSL_load_error_strings, TLS_server_method, and SSL_CTX_new
+   *  to create a new SSL server context
+   *  for encrypted communications. This context is stored in class instance.
+   */
+  void SSLInitServerContext() noexcept(false);
 
  private:
   int idSocket{0};               ///< id of the socket
@@ -335,15 +352,6 @@ class Socket {
    */
   int readyToReadWrite(int error) noexcept(true);
   /**
-   * @private
-   * @brief Initialize SSL server context.
-   * @details Uses SSL_library_init, OpenSSL_add_all_algorithms,
-   *  SSL_load_error_strings, TLS_server_method, and SSL_CTX_new
-   *  to create a new SSL server context
-   *  for encrypted communications. This context is stored in class instance.
-   */
-  void SSLInitServerContext() noexcept(false);
-  /**
    * @brief Initialize server SSL object.
    * @details Uses SSL_CTX_new and SSL_new to create a new SSL object for server
    *  connections with the defined context.
@@ -376,13 +384,5 @@ class Socket {
    * @throws SocketException if can't create SSL method
    */
   void SSLInitContext() noexcept(false);
-  /**
-   * @private
-   * @brief SSLInitContext method initializes the SSL context
-   * @details uses openssl library to initialize the SSL context
-   * @throws SocketException if can't create SSL context
-   * @throws SocketException if can't create SSL method
-   */
-  void SSLInit() noexcept(false);
 };
 #endif

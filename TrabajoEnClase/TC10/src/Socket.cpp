@@ -523,9 +523,9 @@ void Socket::SSLAccept() {
     int error = SSL_get_error(this->SSLStruct, result);
     // Handle the error based on the specific SSL error code
     switch (error) {
-      // ssl_error_want_read and ssl_error_want_write are not errors per se,
-      // so we want to retry the call. Here we use a select() see if the
-      // socket is ready for read/write
+        // ssl_error_want_read and ssl_error_want_write are not errors per se,
+        // so we want to retry the call. Here we use a select() see if the
+        // socket is ready for read/write
       case SSL_ERROR_WANT_READ:
       case SSL_ERROR_WANT_WRITE: {
         int readyToReadOrWrite = readyToReadWrite(error);
@@ -556,7 +556,7 @@ void Socket::SSLConnect(const char *host, int port) {
     this->Connect(host, port);  // Establish a non SSL connection first
   } catch (SocketException &e) {
     throw_with_nested(SocketException("Error connecting to host",
-                                      "Socket::SSLConnect", errno));
+                                      "Socket::SSLConnect", errno, false));
   }
   status = SSL_set_fd(this->SSLStruct, this->idSocket);
   if (-1 == status) {
@@ -690,5 +690,14 @@ void Socket::SSLStartLibrary() {
           nullptr)) {
     throw SocketException("Error Setting Openssl libraries",
                           "Socket::SSLStartLibrary", errno);
+  }
+}
+
+const char *Socket::SSLGetCipher() {
+  // Call SSL_get_cipher() and return the name
+  if (this->SSLStruct != nullptr) {
+    return SSL_get_cipher(this->SSLStruct);
+  } else {
+    throw SocketException("Error getting cipher", "Socket::SSLGetCipher");
   }
 }

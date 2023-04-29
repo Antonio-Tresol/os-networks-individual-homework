@@ -248,7 +248,7 @@ class Socket {
    * @brief Get the cipher used by the current SSL connection.
    * @return const char* The cipher used by the current SSL connection.
    */
-  const char* SSLGetCipher() noexcept(true);
+  const char* SSLGetCipher() noexcept(false);
   /**
    * @brief starts all Openssl libraries to get error information.
    * @throws SocketException if can't start libraries
@@ -258,6 +258,12 @@ class Socket {
    *  libraries so that the error information can be retrieved.
    */
   void SSLStartLibrary() noexcept(false);
+  /**
+   * @brief Show SSL certificates.
+   *
+   * Displays the SSL certificates identified in the connection.
+   */
+  void SSLShowCerts() noexcept(true);
 
  private:
   int idSocket{0};               ///< id of the socket
@@ -361,13 +367,6 @@ class Socket {
    */
   void SSLLoadCertificates(const char* certFileName,
                            const char* keyFileName) noexcept(false);
-  /**
-   * @private
-   * @brief Show SSL certificates.
-   *
-   * Displays the SSL certificates identified in the connection.
-   */
-  void SSLShowCerts() noexcept(true);
   /**
    * @private
    * @brief SSLInitContext method initializes the SSL context

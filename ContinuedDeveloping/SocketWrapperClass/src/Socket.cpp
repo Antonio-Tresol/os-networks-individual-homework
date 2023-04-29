@@ -692,3 +692,12 @@ void Socket::SSLStartLibrary() {
                           "Socket::SSLStartLibrary", errno);
   }
 }
+
+const char *Socket::SSLGetCipher() {
+  // Call SSL_get_cipher() and return the name
+  if (this->SSLStruct != nullptr) {
+    return SSL_get_cipher(this->SSLStruct);
+  } else {
+    throw SocketException("Error getting cipher", "Socket::SSLGetCipher");
+  }
+}
