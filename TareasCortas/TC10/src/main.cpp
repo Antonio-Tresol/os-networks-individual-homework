@@ -116,6 +116,40 @@ int main(int cuantos, char** argumentos) {
         std::cerr << "Nested exception caught: " << ne.what() << std::endl;
       }
     }
+  } else if (mode == 3) {
+    Socket *server, *client;
+    try {
+      server =
+          new Socket('s', PORT,
+                     "/home/abotresol/Documents/Uni/OS/abadillaolivas_ci-0123/"
+                     "TrabajoEnClase/TC10/certs/ci0123.pem",
+                     "/home/abotresol/Documents/Uni/OS/abadillaolivas_ci-0123/"
+                     "TrabajoEnClase/TC10/certs/ci0123.pem");
+      for (int i = 0; i < 2; i++) {
+        std::cout << "Waiting for connection..." << std::endl;
+        client = server->Accept();
+        std::cout << "Connection accepted" << std::endl;
+        std::cout << "creating ssl for socket" << std::endl;
+        client->SSLCreate(server);
+        std::cout << "ssl created, serving client" << std::endl;
+
+        // Use fork() instead of thread
+        pid_t pid = fork();
+        if (pid == 0) {  // Child process
+          Service(client);
+          exit(0);
+        } else if (pid > 0) {  // Parent process
+          client->Close();
+        } else {
+          perror("fork");
+          exit(EXIT_FAILURE);
+        }
+      }
+      delete server;
+    } catch (const std::exception& e) {
+      std::cerr << e.what() << '\n';
+      return 1;
+    }
   }
   return 0;
 }
