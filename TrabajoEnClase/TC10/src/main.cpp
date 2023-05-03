@@ -32,11 +32,8 @@ void Service(Socket* client) {
 \t<Password>ci0123</Password>\n\
 </Body>\n";
   try {
-    std::cout << "preparing to accept" << std::endl;
     client->SSLAccept();
-    std::cout << "accepted" << std::endl;
     client->SSLShowCerts();
-
     bytes = client->SSLRead(buf, sizeof(buf));
     buf[bytes] = '\0';
     printf("Client msg: \"%s\"\n", buf);
@@ -77,8 +74,7 @@ int main(int cuantos, char** argumentos) {
         std::thread worker(Service, client);
         worker.join();  // Join the worker thread to wait for it to finish
                         // before continuing the main thread.
-
-      }  // service connection
+      }                 // service connection
       delete server;
     } catch (const std::exception& e) {
       std::cerr << e.what() << '\n';

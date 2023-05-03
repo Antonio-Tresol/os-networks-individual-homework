@@ -515,7 +515,6 @@ void Socket::SSLAccept() {
   while (true) {
     // Call SSL_accept() to initiate TLS/SSL handshake
     int result = SSL_accept(this->SSLStruct);
-    std::cout << "SSL_accept result: " << result << std::endl;
     if (result > 0) {
       // Handshake succeeded
       break;
