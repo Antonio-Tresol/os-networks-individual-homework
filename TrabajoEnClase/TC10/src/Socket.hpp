@@ -234,10 +234,10 @@ class Socket {
    * @brief Construct a new SSL * variable from a previously created context.
    * Constructs a new SSL * variable from a previously created context using the
    * original socket.
-   * @param originalSocket Original socket with a previously created context.
+   * @param parent is the server socket with a previously created context.
    * @return SSL* A new SSL * variable.
    */
-  void SSLCreate(Socket* original) noexcept(false);
+  void SSLCreate(Socket* parent) noexcept(false);
   /**
    * @brief Wait for a TLS/SSL client to initiate the TLS/SSL handshake.
    * @details Waits for a TLS/SSL client to initiate the TLS/SSL

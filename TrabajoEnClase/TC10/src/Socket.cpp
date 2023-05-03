@@ -35,7 +35,6 @@ Socket::Socket(char socketType, bool isIpv6, bool isSsl) {
   // Prepare socket if SSL is enabled
   if (isSsl) {
     try {
-      this->SSLInitContext();
       this->SSLInit();
     } catch (const SocketException &e) {
       throw_with_nested(
@@ -84,6 +83,14 @@ Socket::Socket(char socketType, int port, const char *certFileName,
   if (socketType != 's' && socketType != 'd') {
     throw SocketException("Invalid socket type", "Socket::Socket", EINVAL);
   }
+  // prepare the ssl context
+  try {
+    this->SSLInitServer(certFileName, keyFileName);
+  } catch (const SocketException &e) {
+    throw_with_nested(SocketException("Error Creating Passive Socket",
+                                      "Socket::Socket", false));
+  }
+  // Create a socket:
   // Set the domain to IPv4 or IPv6
   int domain = AF_INET;
   if (isIpv6) {
@@ -103,16 +110,11 @@ Socket::Socket(char socketType, int port, const char *certFileName,
     throw SocketException("Error creating pasive Socket", "Socket::Socket",
                           errno);
   }
+  // bind it to an address and port, and start listening
+  // for incoming connections
   try {
     this->Bind(port);
-    this->Listen(128);
-  } catch (const SocketException &e) {
-    throw_with_nested(SocketException("Error Creating Passive Socket",
-                                      "Socket::Socket", false));
-  }
-  // Prepare socket SSL
-  try {
-    this->SSLInitServer(certFileName, keyFileName);
+    this->Listen(SOMAXCONN);
   } catch (const SocketException &e) {
     throw_with_nested(SocketException("Error Creating Passive Socket",
                                       "Socket::Socket", false));
@@ -392,6 +394,7 @@ int Socket::recvFrom(void *buffer, int length, void *srcAddr) {
 }
 
 void Socket::SSLInitContext() {
+  SSLStartLibrary();
   // We must create a method to define our context
   const SSL_METHOD *method = TLS_client_method();
   if (method == nullptr) {
@@ -414,7 +417,9 @@ void Socket::SSLInitContext() {
 void Socket::SSLInit() {
   // Create a SSL socket, a new context must be created before
   try {
-    this->SSLInitContext();
+    if (this->SSLContext == nullptr) {
+      this->SSLInitContext();
+    }
   } catch (SocketException &e) {
     throw;
   }
@@ -425,6 +430,7 @@ void Socket::SSLInit() {
   this->SSLStruct = ssl;
 }
 void Socket::SSLInitServerContext() {
+  SSLStartLibrary();
   const SSL_METHOD *method = nullptr;
   method = TLS_server_method();
   if (method == nullptr) {
@@ -444,11 +450,6 @@ void Socket::SSLInitServer(const char *certFileName, const char *keyFileName) {
   } catch (SocketException &e) {
     throw;
   }
-  SSL *ssl = SSL_new(this->SSLContext);
-  if (ssl == nullptr) {
-    throw SocketException("Error creating SSL", "Socket::SSLInitServer");
-  }
-  this->SSLStruct = ssl;
 }
 
 void Socket::SSLLoadCertificates(const char *certFileName,
@@ -500,22 +501,21 @@ void Socket::SSLShowCerts() noexcept(true) {
     std::cout << "No certificates." << std::endl;
   }
 }
-void Socket::SSLCreate(Socket *original) {
-  this->idSocket = original->idSocket;
-  // context must be created before
-  this->SSLContext = original->SSLContext;
-  try {
-    this->SSLInit();
-  } catch (SocketException &e) {
-    throw_with_nested(
-        SocketException("Error creating SSL", "Socket::SSLCreate", false));
+void Socket::SSLCreate(Socket *parent) {
+  SSL *ssl = SSL_new(parent->SSLContext);
+  if (ssl == nullptr) {
+    throw SocketException("Error creating SSL", "Socket::SSLCreate");
   }
+  this->SSLStruct = ssl;
+  if (!SSL_set_fd(ssl, this->idSocket))
+    throw SocketException("Error setting SSL fd", "Socket::SSLCreate");
 }
 
 void Socket::SSLAccept() {
   while (true) {
     // Call SSL_accept() to initiate TLS/SSL handshake
     int result = SSL_accept(this->SSLStruct);
+    std::cout << "SSL_accept result: " << result << std::endl;
     if (result > 0) {
       // Handshake succeeded
       break;
@@ -685,12 +685,9 @@ int Socket::readyToReadWrite(int error) noexcept(true) {
 }
 
 void Socket::SSLStartLibrary() {
-  if (!OPENSSL_init_ssl(
-          OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
-          nullptr)) {
-    throw SocketException("Error Setting Openssl libraries",
-                          "Socket::SSLStartLibrary", errno);
-  }
+  SSL_library_init();
+  SSL_load_error_strings();
+  OpenSSL_add_all_algorithms();
 }
 
 const char *Socket::SSLGetCipher() {

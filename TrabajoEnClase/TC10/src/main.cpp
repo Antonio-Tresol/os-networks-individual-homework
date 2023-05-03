@@ -16,7 +16,7 @@
 
 void Service(Socket* client) {
   char buf[1024] = {0};
-  int sd, bytes;
+  int bytes;
   const char* ServerResponse =
       "\n<Body>\n\
 \t<Server>os.ecci.ucr.ac.cr</Server>\n\
@@ -75,6 +75,9 @@ int main(int cuantos, char** argumentos) {
         client = server->Accept();
         client->SSLCreate(server);
         std::thread worker(Service, client);
+        worker.join();  // Join the worker thread to wait for it to finish
+                        // before continuing the main thread.
+
       }  // service connection
       delete server;
     } catch (const std::exception& e) {
@@ -83,8 +86,8 @@ int main(int cuantos, char** argumentos) {
     }
   } else if (mode == 2) {
     Socket* client;
-    char userName[16] = {0};
-    char password[16] = {0};
+    char userName[16] = "piro";
+    char password[16] = "ci0123";
     const char* requestMessage =
         "\n<Body>\n\
 \t<UserName>%s</UserName>\n\
@@ -97,10 +100,6 @@ int main(int cuantos, char** argumentos) {
     int portnum = PORT;
     try {
       client = new Socket('s', false, true);
-      printf("Enter the User Name : ");
-      scanf("%s", userName);
-      printf("\nEnter the Password : ");
-      scanf("%s", password);
       sprintf(clientRequest, requestMessage, userName,
               password);  // construct reply
       client->SSLConnect(hostname.c_str(), portnum);
