@@ -71,7 +71,7 @@ Socket::Socket(char socketType, int port, bool isIpv6) noexcept(false) {
   // bind the socket to the port
   try {
     this->Bind(port);
-    this->Listen(128);
+    this->Listen(SOMAXCONN);
   } catch (const SocketException &e) {
     throw_with_nested(SocketException("Error Creating Passive Socket",
                                       "Socket::Socket", false));
@@ -85,6 +85,7 @@ Socket::Socket(char socketType, int port, const char *certFileName,
   }
   // prepare the ssl context
   try {
+    // initialize the ssl context and loads the certificates
     this->SSLInitServer(certFileName, keyFileName);
   } catch (const SocketException &e) {
     throw_with_nested(SocketException("Error Creating Passive Socket",
