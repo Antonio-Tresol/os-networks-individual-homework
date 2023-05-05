@@ -60,13 +60,12 @@ int main(int cuantos, char** argumentos) {
   int mode = std::atoi(argumentos[1]);
   if (mode == 1) {
     Socket *server, *client;
+    std::string certsFileName;
+    std::cout << "Enter the fullpath of the file with the certificates: ";
+    std::cin >> certsFileName;
     try {
-      server =
-          new Socket('s', PORT,
-                     "/home/abotresol/Documents/Uni/OS/abadillaolivas_ci-0123/"
-                     "TrabajoEnClase/TC10/certs/ci0123.pem",
-                     "/home/abotresol/Documents/Uni/OS/abadillaolivas_ci-0123/"
-                     "TrabajoEnClase/TC10/certs/ci0123.pem");
+      server = new Socket('s', PORT, certsFileName.c_str(),
+                          certsFileName.c_str());  // create server socket
       for (int i = 0; i < 2; i++) {
         std::cout << "Waiting for connection..." << std::endl;
         client = server->Accept();

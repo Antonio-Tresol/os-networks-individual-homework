@@ -1,2 +1,2 @@
 include ../../common/Makefile
-LIBS = -lssl -lcrypto
+LIBS = -lssl -lcrypto -lpthread
