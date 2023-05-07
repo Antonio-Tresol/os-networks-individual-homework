@@ -140,6 +140,7 @@ void Socket::Close() {
     SSL_CTX_free(this->SSLContext);
   }
   if (this->SSLStruct != nullptr) {
+    SSL_shutdown(this->SSLStruct);
     SSL_free(this->SSLStruct);
   }
   this->isOpen = false;
