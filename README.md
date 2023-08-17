@@ -3,5 +3,6 @@
 ## Repositorio para trabajos individuales del curso de Proyecto Integrador de Redes y Sistmeas Operativos
 
 ### Estudiante: A Badilla Olivas
-### carnet: B80874
+
+mostly linux system call encapsulation
 
